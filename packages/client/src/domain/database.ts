@@ -37,6 +37,9 @@ export const Database = z
     name: z.string(),
     engine: z.string().optional(),
     is_saved_questions: z.boolean().optional(),
+    // The Saved Questions database stands in for no real one and carries neither flag.
+    is_sample: z.boolean().optional(),
+    is_audit: z.boolean().optional(),
     initial_sync_status: z.string().nullable().optional(),
     tables: z.array(z.union([Table, DatabaseVirtualTable])).optional(),
   })

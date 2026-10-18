@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { Field, FieldCompact } from "./field";
+import { Field, FieldCompact, FieldWithTarget } from "./field";
 
 const TableEntityType = z.enum([
   "entity/GenericTable",
@@ -17,16 +17,39 @@ export type TableVisibilityType = z.infer<typeof TableVisibilityType>;
 
 const TableFieldOrder = z.enum(["alphabetical", "custom", "database", "smart"]);
 
+const TableDataAuthority = z.enum(["unconfigured", "authoritative", "computed", "ingested"]);
+
+// Metabase 58 names a table's layer after a medallion metal; 59 replaced the vocabulary with one
+// value fewer, so neither set maps onto the other and the canonical value is whichever the server
+// speaks.
+export const TableDataLayerTier = z.enum(["final", "internal", "hidden"]);
+export type TableDataLayerTier = z.infer<typeof TableDataLayerTier>;
+
+export const TableDataLayerMedallion = z.enum(["gold", "silver", "bronze", "copper"]);
+export type TableDataLayerMedallion = z.infer<typeof TableDataLayerMedallion>;
+
+export const TableDataLayer = z.enum([
+  ...TableDataLayerTier.options,
+  ...TableDataLayerMedallion.options,
+]);
+export type TableDataLayer = z.infer<typeof TableDataLayer>;
+
 export const Table = z
   .object({
     id: z.number().int(),
     name: z.string(),
     display_name: z.string(),
     description: z.string().nullable(),
+    // What an admin warns a reader about the table's data.
+    caveats: z.string().nullable(),
     db_id: z.number().int(),
     schema: z.string().nullable(),
     entity_type: TableEntityType.nullable(),
     visibility_type: TableVisibilityType.nullable().optional(),
+    data_layer: TableDataLayer.nullable(),
+    // The database's own estimate as its last sync read it, `null` where the engine keeps none or
+    // had none yet.
+    estimated_row_count: z.number().int().nullable(),
     active: z.boolean(),
     is_published: z.boolean().optional(),
     collection_id: z.number().int().nullable().optional(),
@@ -35,8 +58,23 @@ export const Table = z
   .loose();
 export type Table = z.infer<typeof Table>;
 
+// The database a single table's metadata read carries. Named apart from `Database` because a
+// database lists its tables, so the two modules cannot import each other.
+export const TableDatabase = z
+  .object({
+    id: z.number().int(),
+    name: z.string(),
+    engine: z.string(),
+    // What the database's driver can run, such as `nested-queries` or `left-join`; left out when
+    // the driver is not loaded.
+    features: z.array(z.string()).optional(),
+  })
+  .loose();
+export type TableDatabase = z.infer<typeof TableDatabase>;
+
 export const TableQueryMetadata = Table.extend({
-  fields: z.array(Field),
+  fields: z.array(FieldWithTarget),
+  db: TableDatabase,
 });
 export type TableQueryMetadata = z.infer<typeof TableQueryMetadata>;
 
@@ -63,23 +101,6 @@ export type TableCompact = z.infer<typeof TableCompact>;
 
 export const TableQueryMetadataCompact = TableCompact.extend({ fields: z.array(FieldCompact) });
 export type TableQueryMetadataCompact = z.infer<typeof TableQueryMetadataCompact>;
-
-const TableDataAuthority = z.enum(["unconfigured", "authoritative", "computed", "ingested"]);
-
-// Metabase 58 names a table's layer after a medallion metal; 59 replaced the vocabulary with one
-// value fewer, so neither set maps onto the other and the canonical value is whichever the server
-// speaks.
-export const TableDataLayerTier = z.enum(["final", "internal", "hidden"]);
-export type TableDataLayerTier = z.infer<typeof TableDataLayerTier>;
-
-export const TableDataLayerMedallion = z.enum(["gold", "silver", "bronze", "copper"]);
-export type TableDataLayerMedallion = z.infer<typeof TableDataLayerMedallion>;
-
-export const TableDataLayer = z.enum([
-  ...TableDataLayerTier.options,
-  ...TableDataLayerMedallion.options,
-]);
-export type TableDataLayer = z.infer<typeof TableDataLayer>;
 
 export const TableDataSource = z.enum([
   "unknown",

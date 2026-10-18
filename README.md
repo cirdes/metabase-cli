@@ -836,11 +836,12 @@ mb card get 1 --json --full
 
 ### `mb card query <id>`
 
-Run the card's query. Without `--export-format`, returns the Metabase JSON envelope (`status`, `row_count`, `data: { rows, cols }`, …). With `--export-format csv`, `--export-format json`, or `--export-format xlsx`, the export bytes stream straight to stdout, capped at the server's download row limit. An export refuses `--full`, `--fields`, `--max-bytes` and `--limit`, which shape only the JSON output; `--json` and `--format` still pick the shape of an error.
+Run the card's query. Without `--export-format`, returns the Metabase JSON envelope (`status`, `row_count`, `data: { rows, cols }`, …), whose rows stop at the server's row limit for an API run: when it cut them, `data.rows_truncated` carries the limit and the text summary says so. A result served from the cache carries the time it was computed in `cached` (`--fields cached` or `--full`); `--ignore-cache` runs the query against the database instead. With `--export-format csv`, `--export-format json`, or `--export-format xlsx`, the export bytes stream straight to stdout, capped at the server's download row limit. An export refuses `--full`, `--fields`, `--max-bytes` and `--limit`, which shape only the JSON output; `--json` and `--format` still pick the shape of an error.
 
 ```sh
 mb card query 1 --json
 mb card query 1 --json --limit 20
+mb card query 1 --ignore-cache
 mb card query 1 --export-format csv > export.csv
 mb card query 1 --export-format json > export.json
 mb card query 1 --export-format xlsx > export.xlsx
@@ -852,6 +853,7 @@ mb card query 1 --parameters '[{"type":"category","value":"A","target":["variabl
 | `--export-format <fmt>` | Stream the export instead of the JSON envelope. One of `csv`, `json`, `xlsx`.                                                                                                                                                                                                                                                               |
 | `--parameters <json>`   | JSON array of Metabase parameter objects (the same shape Metabase POSTs from a dashboard).                                                                                                                                                                                                                                                  |
 | `--limit <n>`           | Cap rows kept in the JSON envelope. Refused with `--export-format`.                                                                                                                                                                                                                                                                         |
+| `--ignore-cache`        | Run the query against the database even when Metabase would serve a cached result (default `false`). Refused with `--export-format`.                                                                                                                                                                                                        |
 | `--format-rows`         | Streamed exports only: format values as Metabase displays them, the card's column settings included (default `false`). Refused without `--export-format`.                                                                                                                                                                                   |
 | `--pivot-results`       | With `--export-format csv` or `xlsx`: lay a pivot question's rows out as the pivot, with its subtotals (default `false`). Refused when the server has pivoted exports turned off (the `enable-pivoted-exports` setting).                                                                                                                    |
 | `--csv-include-bom`     | With `--export-format csv`: open the file with a UTF-8 byte order mark, so Excel reads it as UTF-8 (default `false`). Metabase v63+; refused before the request on an older server (exit 2), judged against a probe of the server taken in the same run, because an older server drops the parameter and exports the file without the mark. |
@@ -988,11 +990,13 @@ Fetch the selectable values for one dashboard parameter (`{values, has_more_valu
 ```sh
 mb dashboard parameter-values 1 order_status --json
 mb dashboard parameter-values 1 order_status --query Cam --json
+mb dashboard parameter-values 1 product_name --constraints '{"category":["Gizmo","Widget"]}' --json
 ```
 
-| Flag               | Description                                                                            |
-| ------------------ | -------------------------------------------------------------------------------------- |
-| `--query <substr>` | Case-insensitive substring search (first 1000 matches) instead of the full value list. |
+| Flag                   | Description                                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `--query <substr>`     | Case-insensitive substring search (first 1000 matches) instead of the full value list.                                         |
+| `--constraints <json>` | Other parameters' values by parameter id, which narrow the values of a parameter linked to them. An array sets several values. |
 
 ### `mb dashboard create`
 
@@ -2100,7 +2104,7 @@ Drive Metabase Enterprise Remote Sync (`/api/ee/remote-sync`) — import / expor
 
 ### `mb git-sync status`
 
-Roll up the current sync state in one call: configured branch, dirty flag, the most recent sync task (or `null` if none has ever run), and the collections marked for sync. On a server without the `remote_sync` feature the command refuses with exit 2 rather than misreading what the server answers: the collection read behind the sync scope is refused before it is sent, judged against a probe of the server taken in the same run, because such a server lists its collections without the sync flag, which would read as an empty scope; and the branch is refused on the same probe that reads the `remote-sync-branch` setting, because an Enterprise server without the token still shows an admin that setting, which would read as a branch git-sync tracks.
+Roll up the current sync state in one call: whether a remote is configured, the sync type (`read-only` or `read-write`), configured branch, dirty flag, the most recent sync task (or `null` if none has ever run), and the collections marked for sync. On a server without the `remote_sync` feature the command refuses with exit 2 rather than misreading what the server answers: the collection read behind the sync scope is refused before it is sent, judged against a probe of the server taken in the same run, because such a server lists its collections without the sync flag, which would read as an empty scope; and the branch is refused on the same probe that reads the `remote-sync-branch` setting, because an Enterprise server without the token still shows an admin that setting, which would read as a branch git-sync tracks.
 
 ```sh
 mb git-sync status

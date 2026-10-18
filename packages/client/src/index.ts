@@ -119,11 +119,13 @@ export {
   Card,
   CardCompact,
   CardCreateInput,
+  CardDetail,
   CardListFilter,
   CardQueryResult,
   CardQueryResultCompact,
   CardType,
   CardUpdateInput,
+  ResultColumn,
 } from "./domain/card";
 export {
   COLLECTION_ITEM_FILTER_MODELS,
@@ -155,13 +157,18 @@ export {
   DashboardCreateInput,
   DashboardDetail,
   DashboardListFilter,
+  DashboardParameterConstraints,
   DashboardTab,
   DashboardTabCompact,
   DashboardUncopiedCard,
   DashboardUpdateInput,
   Dashcard,
   DashcardCompact,
+  DashcardDetail,
   DashcardPatchInput,
+  DashcardVirtualCard,
+  DashcardVisualizationSettings,
+  UnreadableCard,
 } from "./domain/dashboard";
 export {
   DataAction,
@@ -187,6 +194,7 @@ export {
   CompiledQueryCompact,
   QueryMetadata,
   QueryMetadataCompact,
+  QueryMetadataTable,
   VirtualField,
   VirtualFieldCompact,
   VirtualTable,
@@ -246,11 +254,11 @@ export {
   FieldValuesCompact,
   FieldWithDataSensitivity,
   FieldWithDataSensitivityCompact,
+  FieldWithTarget,
   hasDataSensitivity,
 } from "./domain/field";
 export {
-  isSyncTaskFailed,
-  isSyncTaskTerminal,
+  RemoteSyncState,
   SyncBranchCreated,
   SyncDirtyItem,
   SyncDirtyItemCompact,
@@ -267,6 +275,9 @@ export {
   SyncTaskCompact,
   SyncTaskStatus,
   SyncTaskType,
+  SyncType,
+  isSyncTaskFailed,
+  isSyncTaskTerminal,
 } from "./domain/git-sync";
 export {
   Glossary,
@@ -410,6 +421,7 @@ export {
   TableBulkEditInput,
   TableBulkEditResult,
   TableCompact,
+  TableDatabase,
   TableDataLayer,
   TableDataLayerMedallion,
   TableDataLayerTier,

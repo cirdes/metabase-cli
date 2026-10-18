@@ -1,4 +1,4 @@
-import { Dashcard, DashcardPatchInput } from "@metabase/client/domain/dashboard";
+import { DashcardDetail, DashcardPatchInput } from "@metabase/client/domain/dashboard";
 import { dashcardView } from "../../output/views/dashboard";
 import { renderSummary } from "../../output/render";
 import { readBody } from "../../runtime/body";
@@ -22,7 +22,7 @@ export default defineMetabaseCommand({
     "dashcard-id": { type: "positional", description: "Dashcard id", required: true },
   },
   inputSchema: DashcardPatchInput,
-  outputSchema: Dashcard,
+  outputSchema: DashcardDetail,
   examples: [
     'mb dashboard update-dashcard 1 5 --body \'{"row":2,"col":0}\'',
     'mb dashboard update-dashcard 1 5 --body \'{"size_x":12,"size_y":4}\'',

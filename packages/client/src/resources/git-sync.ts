@@ -11,6 +11,7 @@ import {
   SyncRemoteChanges,
   SyncSettingsUpdateResult,
   type SyncStashResult,
+  RemoteSyncState,
   SyncTask,
 } from "../domain/git-sync";
 import { SessionProperties } from "../domain/session-properties";
@@ -61,7 +62,8 @@ const SyncStashStarted = z.object({
 
 const RemoteSyncSetting = z.string().nullable();
 
-// `/api/setting/remote-sync-branch` answers nothing for a branch set by environment variable, while
+// `/api/setting/remote-sync-branch` answers nothing for a branch set by environment variable (read
+// from the environment on 60 and later), while
 // the session properties carry every setting's effective value, and carry a setting only when the
 // caller may read it: an absent key is "not readable", a null one "unset". They are read as a
 // probe, so the features a branch read, an import or an export judges by that same answer, and a
@@ -87,6 +89,17 @@ interface SyncSettingsUpdateBody {
 const BRANCH_UNREADABLE_MESSAGE =
   "the remote-sync-branch setting is not readable: only admins see it, and a server without remote sync has none";
 const BRANCH_UNSET_MESSAGE = "git-sync tracks no branch: the remote-sync-branch setting is unset";
+
+// Every user may read whether a remote is configured, and the sync type; a server without the
+// remote-sync module carries neither key.
+const RemoteSyncStateProperty = RemoteSyncBranchProperty.extend({
+  "remote-sync-enabled": z.boolean().optional(),
+  "remote-sync-type": RemoteSyncState.shape.sync_type.optional(),
+});
+type RemoteSyncStateProperty = z.infer<typeof RemoteSyncStateProperty>;
+
+const REMOTE_SYNC_STATE_ABSENT_MESSAGE =
+  "the remote-sync-enabled and remote-sync-type settings are absent: the server has no remote-sync module";
 
 // The remote-sync settings are admin-readable only, and unregistered on servers without the
 // remote-sync module; both answers mean "no usable remote", not a failure of the caller's request.
@@ -447,6 +460,23 @@ export function gitSyncResource(transport: Transport) {
   }
 
   /**
+   * Whether a remote is configured, through the settings or the environment, the direction the
+   * instance syncs in, which is `read-only` until an admin sets it, and the branch it tracks, all
+   * from one read. The remote's URL is visible to admins only and absent when the environment sets
+   * it, so `configured` is read from its own setting. Refused like `branch` when the caller may not
+   * read the branch, and on a server without the remote-sync module.
+   */
+  function remote(properties: RemoteSyncStateProperty): RemoteSyncState {
+    const tracked = branch(properties);
+    const configured = properties["remote-sync-enabled"];
+    const syncType = properties["remote-sync-type"];
+    if (configured === undefined || syncType === undefined) {
+      throw new ConfigError(REMOTE_SYNC_STATE_ABSENT_MESSAGE);
+    }
+    return { configured, sync_type: syncType, branch: tracked };
+  }
+
+  /**
    * The branch git-sync tracks, refused when none is configured, the server has no remote sync, or
    * the caller may not read it.
    */
@@ -490,7 +520,7 @@ export function gitSyncResource(transport: Transport) {
     branches: explain("branches", branches),
     createBranch: explain("createBranch", createBranch),
     setCollectionSynced: explain("setCollectionSynced", setCollectionSynced),
-    // A server without remote sync lists its collections without `is_remote_synced`, which would
+    // A server without remote sync lists its collections with `is_remote_synced` false, which would
     // read as an empty sync scope rather than as a server with no git-sync at all.
     syncedCollections: refuse("syncedCollections", syncedCollections),
     remoteUrl,
@@ -498,6 +528,7 @@ export function gitSyncResource(transport: Transport) {
     // read as a branch git-sync tracks. The refusal judges the profile the setting's read settles,
     // so it costs no request of its own.
     branch: refuseAfterReading("branch", RemoteSyncBranchProperty, branch),
+    remote: refuseAfterReading("remote", RemoteSyncStateProperty, remote),
     trackedBranch: refuseAfterReading("trackedBranch", RemoteSyncBranchProperty, trackedBranch),
     waitForTask: explain("waitForTask", waitForTask),
   };

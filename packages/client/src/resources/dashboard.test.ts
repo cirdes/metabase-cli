@@ -30,6 +30,9 @@ function card(id: number, archived = false) {
     creator_id: 1,
     dataset_query: { type: "query" },
     visualization_settings: {},
+    collection_position: null,
+    parameters: [],
+    result_metadata: null,
   };
 }
 
@@ -55,6 +58,8 @@ const DASHCARD = {
   visualization_settings: {},
   parameter_mappings: [],
   inline_parameters: [],
+  action_id: null,
+  card: card(7),
 };
 
 const DASHBOARD = {
@@ -70,6 +75,7 @@ const DASHBOARD = {
   enable_embedding: false,
   public_uuid: null,
   cache_ttl: null,
+  collection_position: null,
   parameters: [],
 };
 
@@ -245,7 +251,26 @@ describe("dashboard resource wire requests", () => {
         url: "https://mb.example.com/metabase/api/dashboard/5",
         method: "PUT",
         headers: JSON_REQUEST_HEADERS,
-        body: '{"dashcards":[{"dashboard_id":5,"card_id":7,"dashboard_tab_id":null,"visualization_settings":{},"parameter_mappings":[],"inline_parameters":[],"id":11,"size_x":12,"size_y":6,"row":4,"col":2}]}',
+        body: JSON.stringify({
+          dashcards: [
+            {
+              dashboard_id: 5,
+              card_id: 7,
+              dashboard_tab_id: null,
+              visualization_settings: {},
+              parameter_mappings: [],
+              inline_parameters: [],
+              action_id: null,
+              card: card(7),
+              id: 11,
+              size_x: 12,
+              size_y: 6,
+              row: 4,
+              col: 2,
+            },
+          ],
+          tabs: [],
+        }),
       },
     ]);
   });

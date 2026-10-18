@@ -1,4 +1,4 @@
-import { Card, CardCreateInput } from "@metabase/client/domain/card";
+import { CardDetail, CardCreateInput } from "@metabase/client/domain/card";
 import { cardView } from "../../output/views/card";
 import { renderSummary } from "../../output/render";
 import { readBody } from "../../runtime/body";
@@ -32,7 +32,7 @@ export default defineMetabaseCommand({
     ...skipValidateFlag,
   },
   inputSchema: CardCreateInput,
-  outputSchema: Card,
+  outputSchema: CardDetail,
   examples: [
     "cat card.json | mb card create",
     "mb card create --file card.json",

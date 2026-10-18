@@ -29,8 +29,13 @@ const FIELD = {
   display_name: "Total",
   description: null,
   base_type: "type/Float",
+  effective_type: "type/Float",
+  coercion_strategy: null,
   semantic_type: null,
   fk_target_field_id: null,
+  database_is_pk: false,
+  parent_id: null,
+  nfc_path: null,
 };
 
 const TABLE = {
@@ -41,6 +46,9 @@ const TABLE = {
   db_id: 1,
   schema: "public",
   entity_type: "entity/TransactionTable",
+  caveats: null,
+  data_layer: null,
+  estimated_row_count: null,
   active: true,
 };
 
@@ -508,7 +516,13 @@ describe("table resource wire requests", () => {
   });
 
   it("sends the query-metadata request", async () => {
-    const { mb, capture } = clientOver([jsonResponse({ ...TABLE, fields: [FIELD] })]);
+    const { mb, capture } = clientOver([
+      jsonResponse({
+        ...TABLE,
+        db: { id: 1, name: "Warehouse", engine: "postgres" },
+        fields: [{ ...FIELD, target: null }],
+      }),
+    ]);
 
     await mb.table.queryMetadata(11);
 

@@ -398,7 +398,7 @@ describe.skipIf(skipReason !== null)("git-sync e2e against EE git-sync endpoints
     });
   });
 
-  it("status rolls up branch (null), is_dirty (false), and current_task (null)", async () => {
+  it("status rolls up remote_configured (false), sync_type (read-only), branch (null), is_dirty (false), and current_task (null)", async () => {
     const configHome = await makeIsolatedConfigHome();
     const result = await runCli({
       args: ["git-sync", "status", "--json"],
@@ -407,6 +407,8 @@ describe.skipIf(skipReason !== null)("git-sync e2e against EE git-sync endpoints
     });
     expect(result.exitCode, result.stderr).toBe(0);
     expect(parseJson(result.stdout, SyncStatus)).toEqual({
+      remote_configured: false,
+      sync_type: "read-only",
       branch: null,
       is_dirty: false,
       current_task: null,

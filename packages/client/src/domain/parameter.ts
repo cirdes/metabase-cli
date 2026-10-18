@@ -63,7 +63,7 @@ export type ValuesSourceType = z.infer<typeof ValuesSourceType>;
 export const ValuesQueryType = z.enum(["list", "search", "none"]);
 export type ValuesQueryType = z.infer<typeof ValuesQueryType>;
 
-const TemplateTagRef = z.tuple([
+export const ParameterTemplateTagRef = z.tuple([
   z.literal("template-tag"),
   z.union([z.string(), z.object({ id: z.string() }).loose()]),
 ]);
@@ -74,17 +74,20 @@ const TemplateTagRef = z.tuple([
 const FieldRefLike = z.tuple([z.string()]).rest(z.unknown());
 
 const DimensionTarget = z
-  .tuple([z.literal("dimension"), z.union([TemplateTagRef, FieldRefLike])])
+  .tuple([z.literal("dimension"), z.union([ParameterTemplateTagRef, FieldRefLike])])
   .rest(z.unknown());
 
-const VariableTarget = z.tuple([z.literal("variable"), z.union([TemplateTagRef, FieldRefLike])]);
+const VariableTarget = z.tuple([
+  z.literal("variable"),
+  z.union([ParameterTemplateTagRef, FieldRefLike]),
+]);
 
-const TextTagTarget = z.tuple([z.literal("text-tag"), z.string()]);
+export const ParameterTextTagTarget = z.tuple([z.literal("text-tag"), z.string()]);
 
 export const ParameterTarget = z.union([
   DimensionTarget,
   VariableTarget,
-  TextTagTarget,
+  ParameterTextTagTarget,
   z.number().int(),
   FieldRefLike,
 ]);
@@ -108,7 +111,8 @@ export const Parameter = z
     slug: z.string().optional(),
     sectionId: z.string().optional(),
     default: z.unknown().optional(),
-    required: z.boolean().optional(),
+    // The stored parameter schema allows `null`, which an API caller may write.
+    required: z.boolean().nullable().optional(),
     filteringParameters: z.array(z.string()).nullable().optional(),
     target: ParameterTarget.optional(),
     temporal_units: z.array(TemporalUnit).nullable().optional(),

@@ -25,8 +25,13 @@ const FIELD = {
   display_name: "Total",
   description: null,
   base_type: "type/Float",
+  effective_type: "type/Float",
+  coercion_strategy: null,
   semantic_type: null,
   fk_target_field_id: null,
+  database_is_pk: false,
+  parent_id: null,
+  nfc_path: null,
   data_sensitivity: null,
 };
 

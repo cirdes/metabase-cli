@@ -1,4 +1,4 @@
-import { Card } from "@metabase/client/domain/card";
+import { CardDetail } from "@metabase/client/domain/card";
 import { cardView } from "../../output/views/card";
 import { renderItem } from "../../output/render";
 import { connectionFlags, outputFlags, profileFlag } from "../flags";
@@ -14,7 +14,7 @@ export default defineMetabaseCommand({
     ...connectionFlags,
     id: { type: "positional", description: "Card id", required: true },
   },
-  outputSchema: Card,
+  outputSchema: CardDetail,
   examples: ["mb card get 1", "mb card get 1 --json"],
   async run({ args, ctx, getClient }) {
     const id = parseId(args.id);

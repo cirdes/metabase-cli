@@ -2,7 +2,6 @@ import { afterEach, assert, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import {
-  Field,
   FieldCompact,
   FieldDataSensitivity,
   FieldSummary,
@@ -188,7 +187,7 @@ describe("field e2e", () => {
     });
 
     expect(update.exitCode, update.stderr).toBe(0);
-    expect(parseJson(update.stdout, Field).description).toBe(newDescription);
+    expect(parseJson(update.stdout, FieldCompact).description).toBe(newDescription);
 
     const restore = await runCli({
       args: [
@@ -203,7 +202,7 @@ describe("field e2e", () => {
       env: authEnv(),
     });
     expect(restore.exitCode, restore.stderr).toBe(0);
-    expect(parseJson(restore.stdout, Field).description).toBeNull();
+    expect(parseJson(restore.stdout, FieldCompact).description).toBeNull();
   });
 
   it("update rejects multiple body sources", async () => {

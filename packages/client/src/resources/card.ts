@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   Card,
   type CardCreateInput,
+  CardDetail,
   type CardListFilter,
   CardQueryResult,
   type CardUpdateInput,
@@ -24,6 +25,8 @@ export interface CardListParams {
 
 export interface CardQueryParams {
   parameters: unknown[];
+  /** Run the query against the database even when a cached result would be served. */
+  ignore_cache?: boolean | undefined;
 }
 
 export interface CardExportParams {
@@ -47,13 +50,16 @@ export function cardResource(transport: Transport) {
   }
 
   /** Get one card by id. */
-  async function get(id: number, options: RequestOptions = {}): Promise<Card> {
-    return transport.requestParsed(Card, `/api/card/${id}`, { ...options });
+  async function get(id: number, options: RequestOptions = {}): Promise<CardDetail> {
+    return transport.requestParsed(CardDetail, `/api/card/${id}`, { ...options });
   }
 
   /** Create a card — a question, a model, or a metric — from a full card body. */
-  async function create(params: CardCreateInput, options: RequestOptions = {}): Promise<Card> {
-    return transport.requestParsed(Card, "/api/card", {
+  async function create(
+    params: CardCreateInput,
+    options: RequestOptions = {},
+  ): Promise<CardDetail> {
+    return transport.requestParsed(CardDetail, "/api/card", {
       ...options,
       method: "POST",
       body: params,
@@ -65,8 +71,8 @@ export function cardResource(transport: Transport) {
     id: number,
     params: CardUpdateInput,
     options: RequestOptions = {},
-  ): Promise<Card> {
-    return transport.requestParsed(Card, `/api/card/${id}`, {
+  ): Promise<CardDetail> {
+    return transport.requestParsed(CardDetail, `/api/card/${id}`, {
       ...options,
       method: "PUT",
       body: params,
@@ -74,11 +80,16 @@ export function cardResource(transport: Transport) {
   }
 
   /** Archive (soft-delete) a card by id. Metabase models this as an update, not its own endpoint. */
-  async function archive(id: number, options: RequestOptions = {}): Promise<Card> {
+  async function archive(id: number, options: RequestOptions = {}): Promise<CardDetail> {
     return update(id, { archived: true }, options);
   }
 
-  /** Run a saved card and return the query result envelope. */
+  /**
+   * Run the query associated with a Card and return the query result envelope. A result served
+   * from the cache carries the time it was computed in `cached`; `ignore_cache` runs the query
+   * against the database instead. The rows stop at the server's row limit for an API run, which
+   * `rows_truncated` carries when it cut them; `exportQuery` runs under the larger download limit.
+   */
   async function query(
     id: number,
     params: CardQueryParams,
@@ -87,7 +98,7 @@ export function cardResource(transport: Transport) {
     return transport.requestParsed(CardQueryResult, `/api/card/${id}/query`, {
       ...options,
       method: "POST",
-      body: { parameters: params.parameters },
+      body: { parameters: params.parameters, ignore_cache: params.ignore_cache },
     });
   }
 

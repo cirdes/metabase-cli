@@ -6,6 +6,55 @@ const FieldVisibilityType = z.enum(["details-only", "hidden", "normal", "retired
 
 const FieldValuesType = z.enum(["list", "search", "none", "auto-list"]);
 
+// Semantic types that also derive from a base type. The server reads any `type/*` descendant back
+// as a base type, and Snowflake syncs a GEOGRAPHY column as `type/SerializedJSON`, so both enums
+// carry them.
+const SEMANTIC_TYPES_WITH_BASE = [
+  "type/AvatarURL",
+  "type/Birthdate",
+  "type/CancelationDate",
+  "type/CancelationTime",
+  "type/CancelationTimestamp",
+  "type/City",
+  "type/Comment",
+  "type/Coordinate",
+  "type/Cost",
+  "type/Country",
+  "type/CreationDate",
+  "type/CreationTime",
+  "type/CreationTimestamp",
+  "type/Currency",
+  "type/DeletionDate",
+  "type/DeletionTime",
+  "type/DeletionTimestamp",
+  "type/Description",
+  "type/Discount",
+  "type/Duration",
+  "type/Email",
+  "type/GrossMargin",
+  "type/ImageURL",
+  "type/Income",
+  "type/JoinDate",
+  "type/JoinTime",
+  "type/JoinTimestamp",
+  "type/Latitude",
+  "type/Longitude",
+  "type/Name",
+  "type/Percentage",
+  "type/Price",
+  "type/Quantity",
+  "type/Score",
+  "type/SerializedJSON",
+  "type/Share",
+  "type/State",
+  "type/Title",
+  "type/URL",
+  "type/UpdatedDate",
+  "type/UpdatedTime",
+  "type/UpdatedTimestamp",
+  "type/ZipCode",
+] as const;
+
 export const FieldBaseType = z.enum([
   "type/*",
   "type/field-values-unsupported",
@@ -15,6 +64,9 @@ export const FieldBaseType = z.enum([
   "type/Integer",
   "type/BigInteger",
   "type/Float",
+  // The hive-like drivers (Spark SQL, Databricks) give a `double precision` query result column
+  // this type, which the hierarchy never derives; a field stored with it reads back as `type/*`.
+  "type/Double",
   "type/Decimal",
   "type/Text",
   "type/UUID",
@@ -51,68 +103,29 @@ export const FieldBaseType = z.enum([
   "type/JSON",
   "type/DruidJSON",
   "type/XML",
+  ...SEMANTIC_TYPES_WITH_BASE,
 ]);
 export type FieldBaseType = z.infer<typeof FieldBaseType>;
 
 export const FieldSemanticType = z.enum([
-  "type/Quantity",
-  "type/Share",
-  "type/Percentage",
-  "type/Currency",
-  "type/Income",
-  "type/Discount",
-  "type/Price",
-  "type/GrossMargin",
-  "type/Cost",
-  "type/Score",
-  "type/Duration",
+  "Semantic/*",
+  "Relation/*",
+  ...SEMANTIC_TYPES_WITH_BASE,
   "type/Location",
-  "type/Coordinate",
-  "type/Latitude",
-  "type/Longitude",
   "type/Address",
-  "type/City",
-  "type/State",
-  "type/Country",
-  "type/ZipCode",
-  "type/URL",
-  "type/ImageURL",
-  "type/AvatarURL",
-  "type/Email",
-  "type/Description",
-  "type/Comment",
   "type/IPAddress",
   "type/Category",
   "type/Enum",
-  "type/Name",
-  "type/Title",
   "type/Product",
   "type/Company",
   "type/Subscription",
   "type/Source",
   "type/CreationTemporal",
-  "type/CreationTimestamp",
-  "type/CreationTime",
-  "type/CreationDate",
   "type/JoinTemporal",
-  "type/JoinTimestamp",
-  "type/JoinTime",
-  "type/JoinDate",
   "type/CancelationTemporal",
-  "type/CancelationTimestamp",
-  "type/CancelationTime",
-  "type/CancelationDate",
   "type/DeletionTemporal",
-  "type/DeletionTimestamp",
-  "type/DeletionTime",
-  "type/DeletionDate",
   "type/UpdatedTemporal",
-  "type/UpdatedTimestamp",
-  "type/UpdatedTime",
-  "type/UpdatedDate",
-  "type/Birthdate",
   "type/Structured",
-  "type/SerializedJSON",
   "type/JSON",
   "type/DruidJSON",
   "type/XML",
@@ -173,8 +186,16 @@ export const Field = z
     description: z.string().nullable(),
     database_type: z.string().nullable().optional(),
     base_type: FieldBaseType,
+    effective_type: FieldBaseType.nullable(),
+    coercion_strategy: FieldCoercionStrategy.nullable(),
     semantic_type: FieldSemanticType.nullable(),
     fk_target_field_id: z.number().int().nullable(),
+    // `null` on a key Metabase unfolded from a JSON column, which the database never declared.
+    database_is_pk: z.boolean().nullable(),
+    // The field a document database's nested field sits in.
+    parent_id: z.number().int().nullable(),
+    // The path to a key Metabase unfolded from a JSON column, `null` on any other field.
+    nfc_path: z.array(z.string()).nullable(),
     has_field_values: FieldValuesType.nullable().optional(),
     visibility_type: FieldVisibilityType.nullable().optional(),
     active: z.boolean().optional(),
@@ -194,6 +215,13 @@ export const FieldCompact = Field.pick({
   fk_target_field_id: true,
 }).strip();
 export type FieldCompact = z.infer<typeof FieldCompact>;
+
+// A metadata read hydrates the field each foreign key points to as `target`. It is `null` on any
+// other field, and on a foreign key whose target the caller cannot read.
+export const FieldWithTarget = Field.extend({
+  target: Field.nullable(),
+});
+export type FieldWithTarget = z.infer<typeof FieldWithTarget>;
 
 // The shape the field endpoints answer on a server with the column: `data_sensitivity` is `null`
 // when the field is unlabelled.

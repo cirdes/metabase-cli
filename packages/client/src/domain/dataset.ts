@@ -70,10 +70,16 @@ export const VirtualTableCompact = DatabaseVirtualTableCompact.extend({
 });
 export type VirtualTableCompact = z.infer<typeof VirtualTableCompact>;
 
+// A query's metadata lists its databases apart, so its tables' own `db` is left unread.
+export const QueryMetadataTable = TableQueryMetadata.omit({ db: true });
+export type QueryMetadataTable = z.infer<typeof QueryMetadataTable>;
+
 export const QueryMetadata = z
   .object({
     databases: z.array(Database),
-    tables: z.array(z.union([TableQueryMetadata, VirtualTable])),
+    tables: z.array(z.union([QueryMetadataTable, VirtualTable])),
+    // The fields a native query's field filters and its snippets name; a table's own sit under its
+    // `fields`.
     fields: z.array(Field),
     snippets: z.array(Snippet),
   })

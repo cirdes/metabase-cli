@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { CardQueryResult } from "@metabase/client/domain/card";
+import { ConfigError } from "@metabase/client/errors";
 import { parseJson } from "@metabase/client/json";
 
 import { formatQueryResult } from "../../output/query-result";
@@ -36,11 +37,18 @@ export default defineMetabaseCommand({
       type: "string",
       description: "Cap rows kept in the JSON envelope; refused with --export-format",
     },
+    "ignore-cache": {
+      type: "boolean",
+      description:
+        "Run the query against the database even when a cached result would be served; refused with --export-format",
+      default: false,
+    },
   },
   outputSchema: CardQueryResult,
   examples: [
     "mb card query 1",
     "mb card query 1 --json --limit 20",
+    "mb card query 1 --ignore-cache",
     "mb card query 1 --export-format csv > results.csv",
     'mb card query 1 --parameters \'[{"type":"category","value":"A","target":["variable",["template-tag","c"]]}]\'',
   ],
@@ -51,6 +59,11 @@ export default defineMetabaseCommand({
 
     if (exportRequest !== null) {
       assertStreamedOutput(ctx);
+      if (args["ignore-cache"]) {
+        throw new ConfigError(
+          "--ignore-cache has no effect with --export-format: an export always runs the query against the database",
+        );
+      }
       const client = await getClient();
       const stream = await client.card.exportQuery(id, exportRequest.format, {
         parameters,
@@ -61,7 +74,10 @@ export default defineMetabaseCommand({
     }
 
     const client = await getClient();
-    const result = await client.card.query(id, { parameters });
+    const result = await client.card.query(id, {
+      parameters,
+      ignore_cache: args["ignore-cache"],
+    });
     const limit = parseOptionalInteger(args.limit, { name: "--limit", min: 1 });
     const limited = applyLimit(result, limit);
     renderSummary(limited, cardQueryView, () => formatQueryResult(limited), ctx);

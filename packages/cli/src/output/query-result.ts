@@ -9,13 +9,29 @@ export function formatQueryResult(result: CardQueryResult): string {
     return `Query ${result.status}${detail}`;
   }
   const head = result.data.cols.map((col) => col.display_name ?? col.name);
-  const rowCount = result.row_count ?? result.data.rows.length;
-  const summary = `${rowCount} row${rowCount === 1 ? "" : "s"}.`;
+  const rowCount = rowCountSummary(
+    result.row_count ?? result.data.rows.length,
+    result.data.rows_truncated ?? result.data.pivot_rows_truncated,
+  );
+  const summary = withCacheNote(rowCount, result.cached);
   if (result.data.rows.length === 0) {
     return summary;
   }
-  const rows = result.data.rows.map((row) =>
-    Array.isArray(row) ? row.map((cell) => formatScalar(cell)) : [formatScalar(row)],
-  );
+  const rows = result.data.rows.map((row) => row.map((cell) => formatScalar(cell)));
   return `${renderRows(head, rows)}\n${summary}`;
+}
+
+function rowCountSummary(rowCount: number, rowLimit: number | undefined): string {
+  const counted = `${rowCount} row${rowCount === 1 ? "" : "s"}`;
+  if (rowLimit === undefined) {
+    return `${counted}.`;
+  }
+  return `${counted}, truncated by the server at ${rowLimit} rows.`;
+}
+
+function withCacheNote(summary: string, cachedAt: string | null | undefined): string {
+  if (cachedAt === undefined || cachedAt === null) {
+    return summary;
+  }
+  return `${summary} Served from the cache computed at ${cachedAt}.`;
 }
