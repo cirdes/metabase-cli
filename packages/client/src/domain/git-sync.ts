@@ -13,6 +13,26 @@ export type SyncTaskStatus = z.infer<typeof SyncTaskStatus>;
 export const SyncTaskType = z.enum(["import", "export"]);
 export type SyncTaskType = z.infer<typeof SyncTaskType>;
 
+/**
+ * The direction an instance syncs in: `read-only` follows the remote branch and refuses local edits
+ * to synced content; `read-write` also exports its own changes.
+ */
+export const SyncType = z.enum(["read-only", "read-write"]);
+export type SyncType = z.infer<typeof SyncType>;
+
+/**
+ * Whether a remote is configured, the direction the instance syncs in, and the branch it tracks,
+ * `null` when none is set. The sync type is a `SyncType` when an admin sets it; a server that reads
+ * `MB_REMOTE_SYNC_TYPE` (60 and later) does not check that value, so it is the string the server
+ * holds.
+ */
+export const RemoteSyncState = z.object({
+  configured: z.boolean(),
+  sync_type: z.string(),
+  branch: z.string().nullable(),
+});
+export type RemoteSyncState = z.infer<typeof RemoteSyncState>;
+
 const TERMINAL_STATUSES = new Set<SyncTaskStatus>([
   "successful",
   "errored",

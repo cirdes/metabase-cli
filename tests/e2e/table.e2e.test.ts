@@ -1,7 +1,6 @@
 import { afterEach, assert, beforeAll, describe, expect, it } from "vitest";
 
 import {
-  Table,
   type TableBulkEditInput,
   TableBulkEditResult,
   TableCompact,
@@ -439,7 +438,7 @@ describe("table e2e", () => {
     });
 
     expect(result.exitCode, result.stderr).toBe(0);
-    const parsed = parseJson(result.stdout, Table);
+    const parsed = parseJson(result.stdout, TableCompact);
     expect(parsed.fields).toBeUndefined();
     expect(TableCompact.parse(parsed)).toEqual(CUSTOMERS_COMPACT);
   });
@@ -686,7 +685,7 @@ describe("table e2e", () => {
     });
 
     expect(update.exitCode, update.stderr).toBe(0);
-    expect(parseJson(update.stdout, Table).description).toBe(newDescription);
+    expect(parseJson(update.stdout, TableCompact).description).toBe(newDescription);
 
     const restore = await runCli({
       args: [
@@ -701,7 +700,7 @@ describe("table e2e", () => {
       env: authEnv(),
     });
     expect(restore.exitCode, restore.stderr).toBe(0);
-    expect(parseJson(restore.stdout, Table).description).toBeNull();
+    expect(parseJson(restore.stdout, TableCompact).description).toBeNull();
   });
 
   it("update shows the visibility it set in the compact view", async () => {
@@ -772,7 +771,7 @@ describe("table e2e", () => {
 
     if (serverHas("tableUserValueWithdrawal")) {
       expect(result.exitCode, result.stderr).toBe(0);
-      expect(parseJson(result.stdout, Table).id).toBe(SEEDED.tables.reviews);
+      expect(parseJson(result.stdout, TableCompact).id).toBe(SEEDED.tables.reviews);
       return;
     }
     expect(result.exitCode).toBe(2);

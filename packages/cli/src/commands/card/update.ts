@@ -1,4 +1,4 @@
-import { Card, CardUpdateInput } from "@metabase/client/domain/card";
+import { CardDetail, CardUpdateInput } from "@metabase/client/domain/card";
 import { cardView } from "../../output/views/card";
 import { renderSummary } from "../../output/render";
 import { readBody } from "../../runtime/body";
@@ -33,7 +33,7 @@ export default defineMetabaseCommand({
     id: { type: "positional", description: "Card id", required: true },
   },
   inputSchema: CardUpdateInput,
-  outputSchema: Card,
+  outputSchema: CardDetail,
   examples: [
     "cat patch.json | mb card update 1",
     "mb card update 1 --file patch.json",

@@ -7,8 +7,11 @@ import {
   type DashboardCreateInput,
   DashboardDetail,
   type DashboardListFilter,
+  type DashboardParameterConstraints,
+  type DashboardTab,
   type DashboardUpdateInput,
   Dashcard,
+  type DashcardDetail,
   type DashcardPatchInput,
 } from "../domain/dashboard";
 import { ParameterValues } from "../domain/parameter";
@@ -68,6 +71,7 @@ interface ReferenceCheck {
 }
 
 type DashcardWriteInput = NonNullable<DashboardUpdateInput["dashcards"]>[number];
+type DashboardTabWriteInput = NonNullable<DashboardUpdateInput["tabs"]>[number];
 
 export function dashboardResource(transport: Transport) {
   const card = cardResource(transport);
@@ -106,18 +110,33 @@ export function dashboardResource(transport: Transport) {
 
   /**
    * Update a dashboard by id, patching only the fields the body carries. `dashcards` and `tabs` are
-   * full replacements: whatever the body omits is deleted from the dashboard.
+   * full replacements: whatever the arrays omit is deleted from the dashboard. A body with
+   * `dashcards` and no `tabs` key keeps the current tabs, read first: the server takes the missing
+   * key for an empty list and deletes every tab, or fails on a dashcard that still names one.
    */
   async function update(
     id: number,
     params: DashboardUpdateInput,
     options: RequestOptions = {},
   ): Promise<DashboardDetail> {
+    const body = await withCurrentTabs(id, params, options);
     return transport.requestParsed(DashboardDetail, `/api/dashboard/${id}`, {
       ...options,
       method: "PUT",
-      body: params,
+      body,
     });
+  }
+
+  async function withCurrentTabs(
+    id: number,
+    params: DashboardUpdateInput,
+    options: RequestOptions,
+  ): Promise<DashboardUpdateInput> {
+    if (params.dashcards === undefined || params.tabs !== undefined) {
+      return params;
+    }
+    const current = await get(id, options);
+    return { ...params, tabs: tabWrites(current.tabs) };
   }
 
   /**
@@ -158,14 +177,14 @@ export function dashboardResource(transport: Transport) {
   /**
    * Patch one dashcard on a dashboard. Metabase exposes no dashcard endpoint and its dashboard PUT
    * is a full replace of `dashcards`, so the patch is read-modify-written over the dashboard as it
-   * currently stands.
+   * currently stands, its tabs sent back unchanged.
    */
   async function updateDashcard(
     dashboardId: number,
     dashcardId: number,
     params: DashcardPatchInput,
     options: RequestOptions = {},
-  ): Promise<Dashcard> {
+  ): Promise<DashcardDetail> {
     const dashboard = await get(dashboardId, options);
     const target = dashboard.dashcards.find((dashcard) => dashcard.id === dashcardId);
     if (target === undefined) {
@@ -175,7 +194,8 @@ export function dashboardResource(transport: Transport) {
     const dashcards = dashboard.dashcards.map((dashcard) =>
       stripEntityId(dashcard.id === dashcardId ? patched : dashcard),
     );
-    const result = await update(dashboardId, { dashcards }, options);
+    const tabs = tabWrites(dashboard.tabs);
+    const result = await update(dashboardId, { dashcards, tabs }, options);
     const refreshed = result.dashcards.find((dashcard) => dashcard.id === dashcardId);
     if (refreshed === undefined) {
       throw new Error(
@@ -238,34 +258,39 @@ export function dashboardResource(transport: Transport) {
 
   /**
    * Fetch the selectable values for a dashboard parameter, through the chain-filter value endpoint.
+   * `constraints` sets other parameters' values, which narrow the values of a parameter linked to
+   * them.
    */
   async function parameterValues(
     dashboardId: number,
     parameterId: string,
+    constraints: DashboardParameterConstraints = {},
     options: RequestOptions = {},
   ): Promise<ParameterValues> {
     return transport.requestParsed(
       ParameterValues,
       `/api/dashboard/${dashboardId}/params/${encodeURIComponent(parameterId)}/values`,
-      { ...options },
+      { ...options, query: constraints },
     );
   }
 
   /**
    * Search a dashboard parameter's selectable values: the server returns only values containing the
-   * substring, capped at the first 1000 matches.
+   * substring, capped at the first 1000 matches. `constraints` narrows them as `parameterValues`
+   * does.
    */
   async function searchParameterValues(
     dashboardId: number,
     parameterId: string,
     query: string,
+    constraints: DashboardParameterConstraints = {},
     options: RequestOptions = {},
   ): Promise<ParameterValues> {
     const parameter = encodeURIComponent(parameterId);
     return transport.requestParsed(
       ParameterValues,
       `/api/dashboard/${dashboardId}/params/${parameter}/search/${encodeURIComponent(query)}`,
-      { ...options },
+      { ...options, query: constraints },
     );
   }
 
@@ -316,6 +341,12 @@ function groupByCardId(references: ReadonlyArray<CardReference>): Map<number, Ca
     }
   }
   return grouped;
+}
+
+// The server orders tabs by their place in the list, so ids and names in the read order keep them
+// as they stand.
+function tabWrites(tabs: ReadonlyArray<DashboardTab>): DashboardTabWriteInput[] {
+  return tabs.map(({ id, name }) => ({ id, name }));
 }
 
 // The five layout fields are named again on the way out because `Dashcard`'s loose catchall makes

@@ -25,6 +25,9 @@ const TABLE = {
   db_id: 1,
   schema: "public",
   entity_type: "entity/TransactionTable",
+  caveats: null,
+  data_layer: null,
+  estimated_row_count: null,
   active: true,
 };
 

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { EmbeddingParams } from "./embedding";
 import { FieldBaseType, FieldSemanticType } from "./field";
+import { ModerationReview } from "./moderation-review";
 import { Parameter, ParameterMapping } from "./parameter";
 import { DatasetQuery } from "./query";
 
@@ -24,6 +25,23 @@ export const CardListFilter = z.enum([
 ]);
 export type CardListFilter = z.infer<typeof CardListFilter>;
 
+// A column of a query's result, as a run returns it in `cols` and a card records it in
+// `result_metadata`. A native column has no `id`, and a native card's `result_metadata` no
+// `effective_type` or `semantic_type`; a column with no semantic type leaves the key out; a
+// remapped column's `id` is null.
+export const ResultColumn = z
+  .object({
+    name: z.string(),
+    display_name: z.string().nullable().optional(),
+    base_type: FieldBaseType.optional(),
+    effective_type: FieldBaseType.nullable().optional(),
+    semantic_type: FieldSemanticType.nullable().optional(),
+    database_type: z.string().nullable().optional(),
+    id: z.number().int().nullable().optional(),
+  })
+  .loose();
+export type ResultColumn = z.infer<typeof ResultColumn>;
+
 export const Card = z
   .object({
     id: z.number().int(),
@@ -41,9 +59,23 @@ export const Card = z
     creator_id: z.number().int(),
     dataset_query: z.unknown(),
     visualization_settings: z.unknown(),
+    collection_position: z.number().int().nullable(),
+    // A card list leaves the reviews out; a single card and a dashboard's cards carry them.
+    moderation_reviews: z.array(ModerationReview).optional(),
   })
   .loose();
 export type Card = z.infer<typeof Card>;
+
+// A single card read or write, typed down to its parameters and result columns. A list keeps to
+// `Card`, so one card whose metadata names an unexpected type fails only its own read.
+export const CardDetail = Card.extend({
+  // `null` on a card saved before cards had parameters and never saved since, and on one whose
+  // stored parameters the server could not normalize.
+  parameters: z.array(Parameter).nullable(),
+  // `null` until the server has worked out the columns the card's query returns.
+  result_metadata: z.array(ResultColumn).nullable(),
+});
+export type CardDetail = z.infer<typeof CardDetail>;
 
 export const CardCompact = Card.pick({
   id: true,
@@ -109,19 +141,14 @@ export const CardUpdateInput = z
   .loose();
 export type CardUpdateInput = z.infer<typeof CardUpdateInput>;
 
-const QueryColumn = z
-  .object({
-    name: z.string(),
-    display_name: z.string().optional(),
-    base_type: FieldBaseType.optional(),
-    semantic_type: FieldSemanticType.nullable().optional(),
-  })
-  .loose();
-
 const CardQueryData = z
   .object({
-    rows: z.array(z.unknown()),
-    cols: z.array(QueryColumn),
+    rows: z.array(z.array(z.unknown())),
+    cols: z.array(ResultColumn),
+    // Present only when the server cut the rows short, carrying the row count it cut them at. A
+    // query with a pivot reports it as `pivot_rows_truncated` instead.
+    rows_truncated: z.number().int().optional(),
+    pivot_rows_truncated: z.number().int().optional(),
   })
   .loose();
 
@@ -130,6 +157,9 @@ export const CardQueryResult = z
     status: z.string(),
     row_count: z.number().int().nonnegative().optional(),
     data: CardQueryData.optional(),
+    // When a completed run was served from the cache, the time the cached result was computed;
+    // otherwise `null`. A run that failed leaves it out.
+    cached: z.string().nullable().optional(),
     error: z.string().nullable().optional(),
     error_type: z.string().nullable().optional(),
   })
@@ -137,10 +167,11 @@ export const CardQueryResult = z
 export type CardQueryResult = z.infer<typeof CardQueryResult>;
 
 // The raw `/api/dataset` envelope carries heavy per-column `lib/*` metadata, fingerprints,
-// `results_metadata`, and `native_form`. The compact projection keeps only what an agent
-// reading rows needs — status, row_count, the rows, and a slim column header — so the default
-// `--json` output isn't hundreds of lines of metadata. `--full` returns the raw envelope.
-const QueryColumnCompact = QueryColumn.pick({
+// `results_metadata`, and `native_form`. The compact projection keeps only what a reader of the
+// rows needs — status, row_count, when a cached result was computed, the rows, a slim column
+// header, and the row limit the server cut them at — so the default `--json` output isn't
+// hundreds of lines of metadata. `--full` returns the raw envelope.
+const ResultColumnCompact = ResultColumn.pick({
   name: true,
   display_name: true,
   base_type: true,
@@ -149,14 +180,17 @@ const QueryColumnCompact = QueryColumn.pick({
 
 const CardQueryDataCompact = z
   .object({
-    rows: z.array(z.unknown()),
-    cols: z.array(QueryColumnCompact),
+    rows: z.array(z.array(z.unknown())),
+    cols: z.array(ResultColumnCompact),
+    rows_truncated: CardQueryData.shape.rows_truncated,
+    pivot_rows_truncated: CardQueryData.shape.pivot_rows_truncated,
   })
   .strip();
 
 export const CardQueryResultCompact = CardQueryResult.pick({
   status: true,
   row_count: true,
+  cached: true,
   error: true,
   error_type: true,
 })

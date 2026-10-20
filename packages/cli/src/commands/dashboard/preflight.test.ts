@@ -40,6 +40,9 @@ function cardFixture(id: number, archived = false): Card {
     creator_id: 1,
     dataset_query: { type: "query" },
     visualization_settings: {},
+    collection_position: null,
+    parameters: [],
+    result_metadata: null,
   });
 }
 

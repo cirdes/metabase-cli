@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { Card } from "./card";
 import { EmbeddingParams } from "./embedding";
 import { Parameter, ParameterMapping } from "./parameter";
 
@@ -40,6 +41,54 @@ export const DashcardCompact = Dashcard.pick({
 }).strip();
 export type DashcardCompact = z.infer<typeof DashcardCompact>;
 
+/**
+ * What a dashcard that is not a chart of a card shows. `display` names it: `text`, `heading`,
+ * `link`, `iframe`, `placeholder`, or `action` for an action button. The server stores the
+ * settings without checking them, so `display` is an open string another client may leave out.
+ */
+export const DashcardVirtualCard = z
+  .object({
+    display: z.string().optional(),
+  })
+  .loose();
+export type DashcardVirtualCard = z.infer<typeof DashcardVirtualCard>;
+
+/**
+ * A dashcard's visualization settings. Every key is free-form except the two that say what a
+ * dashcard is when it is not a chart: `virtual_card`, and `text`, the Markdown a text or heading
+ * dashcard shows.
+ */
+export const DashcardVisualizationSettings = z
+  .object({
+    virtual_card: DashcardVirtualCard.nullable().optional(),
+    text: z.string().nullable().optional(),
+  })
+  .loose();
+export type DashcardVisualizationSettings = z.infer<typeof DashcardVisualizationSettings>;
+
+/**
+ * A card the caller cannot read. The server cuts it down to its `id` before answering, so a
+ * dashboard the caller can read still lists it; a readable card always carries its `name`, which is
+ * what tells the two apart.
+ */
+export const UnreadableCard = z
+  .object({ id: z.number().int(), name: z.never().optional() })
+  .loose();
+export type UnreadableCard = z.infer<typeof UnreadableCard>;
+
+/**
+ * A dashcard as a dashboard read or write returns it, with its card whole in `card`. An action
+ * button bound to a model carries the model there and the action in `action_id`. A dashcard bound to
+ * no card (a text, heading, link, iframe or placeholder dashcard, or an action button bound to no
+ * model, which `visualization_settings.virtual_card` names) has `card_id` and `card` both `null`.
+ */
+export const DashcardDetail = Dashcard.extend({
+  action_id: z.number().int().nullable(),
+  visualization_settings: DashcardVisualizationSettings,
+  card: z.union([Card, UnreadableCard]).nullable(),
+});
+export type DashcardDetail = z.infer<typeof DashcardDetail>;
+
 export const DashboardTab = z
   .object({
     id: z.number().int(),
@@ -73,6 +122,7 @@ export const Dashboard = z
     enable_embedding: z.boolean(),
     public_uuid: z.string().nullable(),
     cache_ttl: z.number().int().nullable(),
+    collection_position: z.number().int().nullable(),
     parameters: z.array(Parameter).nullable(),
     dashcards: z.array(Dashcard).optional(),
     tabs: z.array(DashboardTab).optional(),
@@ -82,7 +132,7 @@ export type Dashboard = z.infer<typeof Dashboard>;
 
 export const DashboardDetail = Dashboard.extend({
   parameters: z.array(Parameter),
-  dashcards: z.array(Dashcard),
+  dashcards: z.array(DashcardDetail),
   tabs: z.array(DashboardTab),
 });
 export type DashboardDetail = z.infer<typeof DashboardDetail>;
@@ -213,3 +263,15 @@ export const DashboardCopyCompact = DashboardCompact.extend({
   uncopied: z.array(DashboardUncopiedCard.pick({ id: true }).strip()).optional(),
 });
 export type DashboardCopyCompact = z.infer<typeof DashboardCopyCompact>;
+
+const ParameterConstraintValue = z.union([z.string(), z.number(), z.boolean()]);
+
+/**
+ * Values of other parameters on a dashboard, by parameter id, that narrow the values a linked
+ * parameter offers. An array sets several values for one parameter.
+ */
+export const DashboardParameterConstraints = z.record(
+  z.string().min(1),
+  z.union([ParameterConstraintValue, z.array(ParameterConstraintValue)]),
+);
+export type DashboardParameterConstraints = z.infer<typeof DashboardParameterConstraints>;

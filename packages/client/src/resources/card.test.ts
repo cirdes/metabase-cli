@@ -25,6 +25,9 @@ const CARD = {
   creator_id: 1,
   dataset_query: { type: "query" },
   visualization_settings: {},
+  collection_position: null,
+  parameters: [],
+  result_metadata: null,
 };
 
 const JSON_REQUEST_HEADERS = {
