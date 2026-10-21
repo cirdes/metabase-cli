@@ -1,6 +1,6 @@
 ---
 name: core
-description: Foundations for driving Metabase from the terminal with the `mb` CLI — authentication and named profiles, the flag/output/`--json` conventions every command shares, JSON body input, command discovery via `--help` (add `--json` for machine-readable schemas), and the per-resource footguns (db, table, field, upload, content translation, card, dashboard, collection, segment, measure, timeline, alert, subscription, library, setting, search, eid). Load first for any `mb` task; it routes to the specialized skills for deeper work.
+description: Foundations for driving Metabase from the terminal with the `mb` CLI — authentication and named profiles, the flag/output/`--json` conventions every command shares, JSON body input, command discovery via `--help` and `mb schema`, and the per-resource footguns (db, table, field, upload, content translation, card, dashboard, collection, segment, measure, timeline, alert, subscription, library, setting, search, eid). Load first for any `mb` task; it routes to the specialized skills for deeper work.
 allowed-tools: Read, Write, Edit, Bash, AskUserQuestion
 ---
 
@@ -113,12 +113,13 @@ Cheapest source that answers the question wins:
 
 - What groups/verbs exist? → `mb --help`, then `mb <group> --help`. Add `--json` for a machine-readable `{command, description}` index (`mb --help --json` lists every command).
 - What flags does a command take? → `mb <command> --help` — flags with enums and defaults, examples, ~1 KB.
-- Output JSON Schema before parsing, JSON-body input schema before authoring, machine-readable arg types, min server version? → `mb <command> --help --json` — that command's full entry (`inputSchema` is the exact validator the command runs on the body; `null` when it takes none).
+- Body shape before authoring, output before parsing? → `mb schema <command>`: the body's JSON Schema, a feature a field needs in its `description`; `--output` for output.
+- Flags, arg types, needed features? → `mb <command> --help --json`, whose `inputSchema` is the body's validator (`null` when it takes none; `{command}` when too large to inline).
 
 ```bash
 mb card query --help                                    # flags, enums, defaults, examples
-mb card list --help --json | jq .outputSchema           # output schema before parsing
-mb card create --help --json | jq .inputSchema          # body schema before authoring
+mb schema card create                                   # body schema before authoring
+mb schema card list --output                            # output schema before parsing
 mb transform --help --json | jq -r '.commands[].command'  # verbs under "transform"
 ```
 

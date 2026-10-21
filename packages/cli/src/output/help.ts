@@ -2,7 +2,11 @@ import { renderUsage } from "citty";
 import type { ArgsDef, CommandDef } from "citty";
 
 import { flagSpellings, readArgv, resolveCitty } from "../runtime/citty";
-import { getMetabaseAugment, type SkillPointer } from "../runtime/command-augment";
+import {
+  getMetabaseAugment,
+  type SchemaContract,
+  type SkillPointer,
+} from "../runtime/command-augment";
 import { buildHelpEntry, buildHelpIndex, CLI_NAME, findSubCommand } from "../runtime/command-help";
 import { jsonLine } from "./render";
 
@@ -76,7 +80,11 @@ export async function showUsage<T extends ArgsDef = ArgsDef>(
   if (isRoot) {
     sections.push(GETTING_STARTED_HINT);
   }
-  sections.push(machineHelpHint(breadcrumb ?? cittyName, hasSubCommands));
+  const schemas: DeclaredSchemas = {
+    body: augment?.input?.kind ?? null,
+    output: augment !== null && augment.outputSchema !== null,
+  };
+  sections.push(machineHelpHint(breadcrumb ?? cittyName, { hasSubCommands, schemas }));
   await writeUsage(sections.join("\n\n") + "\n");
 }
 
@@ -107,12 +115,41 @@ function breadcrumbPath(breadcrumb: string): string[] {
   return segments[0] === CLI_NAME ? segments.slice(1) : segments;
 }
 
-const MACHINE_HELP_LEAF_LABEL = "Machine-readable help (flags, output schema):";
 const MACHINE_HELP_INDEX_LABEL = "Machine-readable command index:";
 
-function machineHelpHint(breadcrumb: string, hasSubCommands: boolean): string {
-  const label = hasSubCommands ? MACHINE_HELP_INDEX_LABEL : MACHINE_HELP_LEAF_LABEL;
-  return `${label} ${breadcrumb} --help --json`;
+interface DeclaredSchemas {
+  body: SchemaContract["kind"] | null;
+  output: boolean;
+}
+
+interface MachineHelpTarget {
+  hasSubCommands: boolean;
+  schemas: DeclaredSchemas;
+}
+
+function machineHelpHint(breadcrumb: string, target: MachineHelpTarget): string {
+  if (target.hasSubCommands) {
+    return `${MACHINE_HELP_INDEX_LABEL} ${breadcrumb} --help --json`;
+  }
+  const contents = target.schemas.body === "zod" ? "flags, body schema" : "flags";
+  const helpLine = `Machine-readable help (${contents}): ${breadcrumb} --help --json`;
+  const schemaLine = schemaHint(breadcrumbPath(breadcrumb).join(" "), target.schemas);
+  return schemaLine === null ? helpLine : `${helpLine}\n${schemaLine}`;
+}
+
+function schemaHint(command: string, schemas: DeclaredSchemas): string | null {
+  const schema = `${CLI_NAME} schema ${command}`;
+  const takesBody = schemas.body !== null;
+  if (takesBody && schemas.output) {
+    return `Body and output schemas: ${schema} [--output]`;
+  }
+  if (takesBody) {
+    return `Body schema: ${schema}`;
+  }
+  if (schemas.output) {
+    return `Output schema: ${schema} --output`;
+  }
+  return null;
 }
 
 function transformBody(lines: string[], rewrite: UsageRewrite): string[] {
