@@ -10,6 +10,7 @@ import {
   getMetabaseAugment,
   type MetabaseAugment,
 } from "./command-augment";
+import { toJsonSchema } from "./json-schema";
 
 const CommandHelpArg = z.object({
   name: z.string(),
@@ -81,8 +82,10 @@ export async function buildHelpEntry<T extends ArgsDef = ArgsDef>(
     skills: Array.from(augment.skills),
     examples: Array.from(augment.examples),
     args: convertArgs(args),
-    inputSchema: augment.inputSchema ? z.toJSONSchema(augment.inputSchema, { io: "input" }) : null,
-    outputSchema: augment.outputSchema ? z.toJSONSchema(augment.outputSchema) : null,
+    inputSchema: augment.inputSchema ? toJsonSchema(augment.inputSchema, { io: "input" }) : null,
+    outputSchema: augment.outputSchema
+      ? toJsonSchema(augment.outputSchema, { io: "output" })
+      : null,
     requires: augment.requires,
   };
   if (augment.details !== null) {
