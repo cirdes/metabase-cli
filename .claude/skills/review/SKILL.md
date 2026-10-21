@@ -24,7 +24,7 @@ Read both before forming any judgment. All other rules required for this review 
 
 ## Project layering (memorize)
 
-A bun workspace with two packages. `packages/client` (`@metabase/client`) is the private Metabase API client, built by `tsdown` to a `dist/` its `exports` map names; `packages/cli` (`@metabase/cli`) is the publishable CLI built on it, and inlines the client at build time. The e2e tier lives at the repo root under `tests/e2e/` and drives the built binary; unit tests sit beside their source under `packages/<p>/src/**/*.test.ts`.
+A bun workspace with two packages. `packages/client` (`@metabase/client`) is the publishable Metabase API client, built by `tsdown` to a `dist/` its `exports` map names; `packages/cli` (`@metabase/cli`) is the publishable CLI built on it, and inlines the client at build time. The e2e tier lives at the repo root under `tests/e2e/` and drives the built binary; unit tests sit beside their source under `packages/<p>/src/**/*.test.ts`.
 
 ```
 packages/client/src/

@@ -9,6 +9,13 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [cli, client]
+    env:
+      PACKAGE_NAME: "@metabase/${{ matrix.package }}"
+      PACKAGE_DIR: packages/${{ matrix.package }}
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
@@ -33,9 +40,9 @@ jobs:
       - name: Check whether local version was already published
         id: check
         run: |
-          LOCAL=$(node -p "require('./packages/cli/package.json').version")
-          LATEST=$(npm view @metabase/cli version 2>/dev/null || echo "none")
-          ALREADY_PUBLISHED=$(npm view @metabase/cli versions --json 2>/dev/null | node -e "
+          LOCAL=$(node -p "require('./$PACKAGE_DIR/package.json').version")
+          LATEST=$(npm view "$PACKAGE_NAME" version 2>/dev/null || echo "none")
+          ALREADY_PUBLISHED=$(npm view "$PACKAGE_NAME" versions --json 2>/dev/null | node -e "
             let raw = '';
             process.stdin.on('data', (chunk) => { raw += chunk; });
             process.stdin.on('end', () => {
@@ -55,7 +62,7 @@ jobs:
 
       - name: Publish to NPM
         if: steps.check.outputs.changed == 'true'
-        working-directory: packages/cli
+        working-directory: ${{ env.PACKAGE_DIR }}
         run: npm publish --tag latest --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_RELEASE_TOKEN }}
@@ -63,7 +70,7 @@ jobs:
       - name: Generate workflow summary
         run: |
           tee -a $GITHUB_STEP_SUMMARY << EOF
-          ## @metabase/cli
+          ## ${{ env.PACKAGE_NAME }}
 
           - **Local version**: ${{ steps.check.outputs.local }}
           - **Current \`latest\` on npm**: ${{ steps.check.outputs.latest }}

@@ -1,11 +1,12 @@
 # @metabase/client
 
-The Metabase API client behind [`@metabase/cli`](../../README.md). It owns the HTTP boundary, a Zod
-schema per Metabase resource, the OAuth login flow, and the server version model.
+The Metabase API client behind [`@metabase/cli`](https://github.com/metabase/metabase-cli#readme).
+It owns the HTTP boundary, a Zod schema per Metabase resource, the OAuth login flow, and the server
+version model.
 
-The package is workspace-internal (`private: true`). `@metabase/cli` consumes it from source and
-inlines it at build time via tsdown's `noExternal`, so the published CLI has no runtime dependency
-on it.
+Install it with its `zod` peer: `npm install @metabase/client zod`. `@metabase/cli` does not install
+it: the CLI consumes the client from source and inlines it at build time via tsdown's `noExternal`,
+so the published CLI has no runtime dependency on it.
 
 `tsdown` here emits one ESM module and one declaration file per `exports` entry into `dist/`, and the
 map names those rather than the source. Installing the packed tarball therefore gets JavaScript Node

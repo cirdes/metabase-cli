@@ -28,7 +28,7 @@ Whole-tree non-deterministic audit. Where `/review` checks the diff, this checks
 >
 > Skip `*.test.ts` files entirely — per CLAUDE.md, "Layering & boundary rules are declared per package and apply to production source only; `*.test.ts` files are exempt and may import across layers." Audit only production `.ts` files.
 >
-> This is a bun workspace: `packages/client` (`@metabase/client`) is the private Metabase API client, `packages/cli` (`@metabase/cli`) is the publishable CLI built on it.
+> This is a bun workspace: `packages/client` (`@metabase/client`) is the publishable Metabase API client, `packages/cli` (`@metabase/cli`) is the publishable CLI built on it.
 >
 > **Package boundary (hardest rule):**
 >
