@@ -181,17 +181,8 @@ describe("data action resource wire requests", () => {
     ]);
   });
 
-  it("explains a collection_id rejected by a server whose data actions have no collection", async () => {
-    const { mb, capture } = clientOver(
-      [
-        jsonResponse(
-          { errors: { collection_id: "nullable value must be an integer greater than zero." } },
-          400,
-        ),
-        probeResponse(V64_SERVER),
-      ],
-      V64_SERVER,
-    );
+  it("refuses a collection_id before the wire on a server whose data actions have no collection", async () => {
+    const { mb, capture } = clientOver([probeResponse(V64_SERVER)], V64_SERVER);
 
     const error = await thrownBy(() => mb.dataAction.update(7, { collection_id: 3 }));
 
@@ -206,7 +197,6 @@ describe("data action resource wire requests", () => {
       serverVersion: "v0.64.0",
     });
     expect(capture.calls.map((call) => call.url)).toEqual([
-      "https://mb.example.com/metabase/api/action/7",
       `https://mb.example.com/metabase${PROBE_PATH}`,
     ]);
   });

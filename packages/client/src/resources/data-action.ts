@@ -12,14 +12,7 @@ import {
 import type { RequestOptions, Transport } from "../http/transport";
 import type { ListResult } from "../list";
 import { gateTriggered } from "../version/input-gates";
-import { explainer, type ParameterRequirement } from "../version/refusal";
-
-// A server whose data actions have no collection rejects `collection_id` with a 400 naming it.
-function collectionFeatures(params: DataActionUpdateInput): ParameterRequirement[] {
-  return gateTriggered(DATA_ACTION_COLLECTION_GATE, params.collection_id)
-    ? [{ feature: DATA_ACTION_COLLECTION_GATE.feature, fields: ["collection_id"] }]
-    : [];
-}
+import { explainer } from "../version/refusal";
 
 // Every path parameter here is a numeric id, so no fragment needs `encodeURIComponent`.
 export function dataActionResource(transport: Transport) {
@@ -56,12 +49,22 @@ export function dataActionResource(transport: Transport) {
     });
   }
 
-  /** Update a data action by id, patching only the fields the body carries. */
+  /**
+   * Update a data action by id, patching only the fields the body carries. A server whose data
+   * actions have no collection strips `collection_id` from the body unread and answers as if it had
+   * moved the action, so the field is refused there before the wire.
+   */
   async function update(
     id: number,
     params: DataActionUpdateInput,
     options: RequestOptions = {},
   ): Promise<DataAction> {
+    await transport.requireFeatures(
+      gateTriggered(DATA_ACTION_COLLECTION_GATE, params.collection_id)
+        ? [DATA_ACTION_COLLECTION_GATE.feature]
+        : [],
+      options,
+    );
     const schema = await readSchema(options);
     return transport.requestParsed(schema, `/api/action/${id}`, {
       ...options,
@@ -101,7 +104,7 @@ export function dataActionResource(transport: Transport) {
     list,
     get,
     create: explain("create", create),
-    update: explain("update", update, (_id, params) => collectionFeatures(params)),
+    update,
     archive,
     delete: remove,
     execute,
