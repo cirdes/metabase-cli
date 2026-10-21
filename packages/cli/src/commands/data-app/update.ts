@@ -1,7 +1,6 @@
 import { DataApp, DataAppUpdateInput } from "@metabase/client/domain/data-app";
 import { dataAppView } from "../../output/views/data-app";
 import { renderSummary } from "../../output/render";
-import { readBody } from "../../runtime/body";
 import { bodyInputFlags } from "../body-flags";
 import { connectionFlags, outputFlags, profileFlag } from "../flags";
 import { defineMetabaseCommand } from "../runtime";
@@ -22,9 +21,9 @@ export default defineMetabaseCommand({
     "mb data-app update sales-overview --body '{\"enabled\":true}'",
     'mb data-app update sales-overview --body \'{"allowed_hosts":["https://api.example.com"]}\'',
   ],
-  async run({ args, ctx, getClient }) {
+  async run({ args, ctx, getClient, readBody }) {
     const slug = parseSlug(args.slug);
-    const body = await readBody({ flag: args.body, file: args.file }, DataAppUpdateInput);
+    const body = await readBody({ flag: args.body, file: args.file });
     const client = await getClient();
     const updated = await client.dataApp.update(slug, body);
     renderSummary(updated, dataAppView, `Updated data app ${updated.name}.`, ctx);

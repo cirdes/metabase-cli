@@ -2,14 +2,22 @@ import { defineCommand } from "citty";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import { CardCreateInput } from "@metabase/client/domain/card";
 import { type MethodKey, methodRequirements } from "@metabase/client/version/requirements";
 
 import { defineMetabaseCommand } from "../commands/runtime";
+import { CARD_DATASET_QUERY } from "../commands/validate-query";
 import main from "../main";
-import { buildHelpEntry, buildHelpIndex, resolveCommandPath } from "./command-help";
+import {
+  BodyJsonSchema,
+  buildHelpEntry,
+  buildHelpIndex,
+  embeddedQueryNotes,
+  InputSchemaPointer,
+  resolveCommandPath,
+} from "./command-help";
 import type { CommandHelpEntry } from "./command-help";
-
-const RequiredKeys = z.object({ required: z.array(z.string()) });
+import { notePaths, toJsonSchema } from "./json-schema";
 
 describe("buildHelpIndex", () => {
   it("walks lazy subCommands into full-path index entries", async () => {
@@ -203,16 +211,45 @@ describe("buildHelpEntry", () => {
     });
   });
 
+  it("emits card create's Zod body as its input-side JSON Schema, noting its embedded query", async () => {
+    const path = ["card", "create"];
+
+    const entry = await buildHelpEntry(await resolveCommandPath(main, path), path);
+
+    expect(entry.inputSchema).toEqual(
+      notePaths(
+        toJsonSchema(CardCreateInput, { io: "input" }),
+        embeddedQueryNotes([CARD_DATASET_QUERY]),
+      ),
+    );
+  });
+
+  it("points query's body at mb schema rather than inlining the MBQL documents", async () => {
+    const path = ["query"];
+
+    const entry = await buildHelpEntry(await resolveCommandPath(main, path), path);
+
+    expect(entry.inputSchema).toEqual({ command: "mb schema query" });
+  });
+
+  it("keeps a schema pointer and a body JSON Schema from parsing as each other", () => {
+    const pointer = { command: "mb schema query" };
+    const schema = toJsonSchema(CardCreateInput, { io: "input" });
+
+    expect({
+      pointerAsSchema: BodyJsonSchema.safeParse(pointer).success,
+      schemaAsPointer: InputSchemaPointer.safeParse(schema).success,
+    }).toEqual({ pointerAsSchema: false, schemaAsPointer: false });
+  });
+
   it("leaves a defaulted body field out of the input schema's required list", async () => {
     const path = ["alert", "create"];
 
     const entry = await buildHelpEntry(await resolveCommandPath(main, path), path);
 
-    expect(RequiredKeys.parse(entry.inputSchema).required).toEqual([
-      "payload",
-      "subscriptions",
-      "handlers",
-    ]);
+    const { required } = z.object({ required: z.array(z.string()) }).parse(entry.inputSchema);
+
+    expect(required).toEqual(["payload", "subscriptions", "handlers"]);
   });
 
   it("forwards details for metabase commands that declare it and omits the key otherwise", async () => {

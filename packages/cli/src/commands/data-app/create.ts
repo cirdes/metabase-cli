@@ -1,7 +1,6 @@
 import { DataApp, DataAppCreateInput } from "@metabase/client/domain/data-app";
 import { dataAppView } from "../../output/views/data-app";
 import { renderSummary } from "../../output/render";
-import { readBody } from "../../runtime/body";
 import { bodyInputFlags } from "../body-flags";
 import { connectionFlags, outputFlags, profileFlag } from "../flags";
 import { defineMetabaseCommand } from "../runtime";
@@ -19,8 +18,8 @@ export default defineMetabaseCommand({
     'mb data-app create --body \'{"name":"sales-overview","display_name":"Sales overview"}\'',
     "mb data-app create --file app.json --json",
   ],
-  async run({ args, ctx, getClient }) {
-    const body = await readBody({ flag: args.body, file: args.file }, DataAppCreateInput);
+  async run({ args, ctx, getClient, readBody }) {
+    const body = await readBody({ flag: args.body, file: args.file });
     const client = await getClient();
     const created = await client.dataApp.create(body);
     renderSummary(

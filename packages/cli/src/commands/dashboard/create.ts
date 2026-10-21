@@ -5,7 +5,6 @@ import {
 } from "@metabase/client/domain/dashboard";
 import { dashboardView } from "../../output/views/dashboard";
 import { renderSummary } from "../../output/render";
-import { readBody } from "../../runtime/body";
 import { bodyInputFlags } from "../body-flags";
 import { connectionFlags, outputFlags, profileFlag } from "../flags";
 import { defineMetabaseCommand } from "../runtime";
@@ -40,8 +39,8 @@ export default defineMetabaseCommand({
     'mb dashboard create --body \'{"name":"My Dashboard","collection_id":4}\'',
     'mb dashboard create --body \'{"name":"D","dashcards":[{"id":-1,"card_id":42,"row":0,"col":0,"size_x":12,"size_y":6}]}\'',
   ],
-  async run({ args, ctx, getClient }) {
-    const body = await readBody({ flag: args.body, file: args.file }, DashboardCreateBody);
+  async run({ args, ctx, getClient, readBody }) {
+    const body = await readBody({ flag: args.body, file: args.file });
     const { dashcards, tabs, ...createOnly } = body;
     const client = await getClient();
     await preflightDashcardCardReferences(client, dashcards);

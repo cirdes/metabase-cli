@@ -13,11 +13,46 @@ export interface CommandRequirements {
   features: readonly FeatureName[];
 }
 
+// A body contract written as JSON Schema documents rather than as Zod. `bundle.schema` is the
+// entry; `bundle.defs` holds the documents it refers to, keyed by the name its `$ref`s use.
+export interface JsonSchemaSource {
+  title: string;
+  command: readonly string[];
+  bundle: JsonSchemaBundle;
+}
+
+interface JsonSchemaBundle {
+  schema: unknown;
+  defs: Readonly<Record<string, unknown>>;
+}
+
+type BodyPredicate = (body: unknown) => boolean;
+
+export interface EmbeddedQuery {
+  resource: string;
+  path: readonly string[];
+  when: BodyPredicate | null;
+  documents: JsonSchemaSource;
+}
+
+interface ZodContract {
+  kind: "zod";
+  schema: ZodType;
+  embedded: readonly EmbeddedQuery[];
+}
+
+interface DocumentsContract {
+  kind: "documents";
+  source: JsonSchemaSource;
+}
+
+export type SchemaContract = ZodContract | DocumentsContract;
+
 export interface MetabaseAugment {
   examples: readonly string[];
   details: string | null;
   skills: readonly SkillPointer[];
-  inputSchema: ZodType | null;
+  input: SchemaContract | null;
   outputSchema: ZodType | null;
   requires: CommandRequirements | null;
 }

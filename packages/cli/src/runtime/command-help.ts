@@ -7,10 +7,13 @@ import { METHOD_KEYS } from "@metabase/client/version/requirements";
 import { resolveCitty, toAliasArray } from "./citty";
 import {
   type CommandRequirements,
+  type EmbeddedQuery,
   getMetabaseAugment,
+  type JsonSchemaSource,
   type MetabaseAugment,
+  type SchemaContract,
 } from "./command-augment";
-import { toJsonSchema } from "./json-schema";
+import { notePaths, type PathNote, toJsonSchema } from "./json-schema";
 
 const CommandHelpArg = z.object({
   name: z.string(),
@@ -29,6 +32,24 @@ const CommandHelpSkill = z.object({
 });
 type CommandHelpSkill = z.infer<typeof CommandHelpSkill>;
 
+export const CLI_NAME = "mb";
+
+// A body held to JSON Schema documents, the bundled MBQL schema among them, is too large to inline,
+// so its entry names the command that prints them.
+export const InputSchemaPointer = z
+  .object({ command: z.string() })
+  .describe(
+    "Not a JSON Schema: the command that prints the JSON Schema documents the body is checked against",
+  );
+
+export const BodyJsonSchema = z
+  .object({ $schema: z.string() })
+  .loose()
+  .describe("The JSON Schema (draft 2020-12) of the body");
+
+const CommandHelpInput = z.union([InputSchemaPointer, BodyJsonSchema]);
+type CommandHelpInput = z.infer<typeof CommandHelpInput>;
+
 const CommandHelpRequires: z.ZodType<CommandRequirements> = z.object({
   methods: z.array(z.enum(METHOD_KEYS)),
   features: z.array(z.enum(FEATURE_NAMES)),
@@ -41,7 +62,7 @@ export const CommandHelpEntry = z.object({
   skills: z.array(CommandHelpSkill),
   examples: z.array(z.string()),
   args: z.array(CommandHelpArg),
-  inputSchema: z.unknown().nullable(),
+  inputSchema: CommandHelpInput.nullable(),
   outputSchema: z.unknown().nullable(),
   requires: CommandHelpRequires.nullable(),
 });
@@ -64,7 +85,7 @@ const EMPTY_AUGMENT: MetabaseAugment = {
   examples: [],
   details: null,
   skills: [],
-  inputSchema: null,
+  input: null,
   outputSchema: null,
   requires: null,
 };
@@ -82,7 +103,7 @@ export async function buildHelpEntry<T extends ArgsDef = ArgsDef>(
     skills: Array.from(augment.skills),
     examples: Array.from(augment.examples),
     args: convertArgs(args),
-    inputSchema: augment.inputSchema ? toJsonSchema(augment.inputSchema, { io: "input" }) : null,
+    inputSchema: helpInput(augment.input),
     outputSchema: augment.outputSchema
       ? toJsonSchema(augment.outputSchema, { io: "output" })
       : null,
@@ -92,6 +113,28 @@ export async function buildHelpEntry<T extends ArgsDef = ArgsDef>(
     entry.details = augment.details;
   }
   return entry;
+}
+
+function helpInput(input: SchemaContract | null): CommandHelpInput | null {
+  if (input === null) {
+    return null;
+  }
+  if (input.kind === "documents") {
+    return { command: documentsCommand(input.source) };
+  }
+  const body = toJsonSchema(input.schema, { io: "input" });
+  return BodyJsonSchema.parse(notePaths(body, embeddedQueryNotes(input.embedded)));
+}
+
+function documentsCommand(source: JsonSchemaSource): string {
+  return `${CLI_NAME} schema ${source.command.join(" ")}`;
+}
+
+export function embeddedQueryNotes(embedded: readonly EmbeddedQuery[]): PathNote[] {
+  return embedded.map(({ path, documents }) => ({
+    path,
+    note: `${documents.title} checked against \`${documentsCommand(documents)}\``,
+  }));
 }
 
 export async function buildHelpIndex<T extends ArgsDef = ArgsDef>(

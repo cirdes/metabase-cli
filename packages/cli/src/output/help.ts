@@ -3,7 +3,7 @@ import type { ArgsDef, CommandDef, SubCommandsDef } from "citty";
 
 import { flagSpellings, readArgv, resolveCitty, toAliasArray } from "../runtime/citty";
 import { getMetabaseAugment, type SkillPointer } from "../runtime/command-augment";
-import { buildHelpEntry, buildHelpIndex } from "../runtime/command-help";
+import { buildHelpEntry, buildHelpIndex, CLI_NAME } from "../runtime/command-help";
 import { jsonLine } from "./render";
 
 export const ANSI_ESC = String.fromCharCode(27);
@@ -24,8 +24,6 @@ const OPTIONS_HEADER = "OPTIONS";
 const LINE_PREFIX = "  ";
 const COLUMN_GAP = "  ";
 const COMMAND_PLACEHOLDER = "<command> [options]";
-
-const CLI_NAME = "mb";
 
 const HELP_FLAG_SPEC = "-h, --help";
 const HELP_FLAG_DESCRIPTION = "Show help for this command";

@@ -24,20 +24,16 @@ import { renderItem, renderSummary, serializeJson, writeJson } from "../output/r
 import { pipeToStdout } from "../output/stream";
 import { cardQueryView } from "../output/views/card";
 import { compiledQueryView, queryMetadataView } from "../output/views/dataset";
-import { readBody } from "../runtime/body";
+import { readJsonBody } from "../runtime/body";
 import type { InputSources } from "../runtime/input";
 import { bodyInputFlags } from "./body-flags";
 import { assertStreamedOutput } from "./export-flags";
 import { connectionFlags, outputFlags, profileFlag } from "./flags";
 import { queryModeFlags, resolveQueryMode } from "./query-mode";
 import { defineMetabaseCommand } from "./runtime";
-import { skipValidateFlag } from "./validate-query";
+import { QUERY_DOCUMENTS, skipValidateFlag } from "./validate-query";
 
-const QueryBody = z
-  .unknown()
-  .describe(
-    'The query body: {"lib/type": "mbql/query", database, stages}; full schema: mb query --print-schema',
-  );
+const QueryBody = z.unknown();
 
 const QueryDryRunOutcome = ValidationOutcome.extend({
   sql: z.string().nullable().describe("The compiled native query; null when it did not compile"),
@@ -80,7 +76,7 @@ export default defineMetabaseCommand({
     ...queryModeFlags,
     ...skipValidateFlag,
   },
-  inputSchema: QueryBody,
+  inputDocuments: QUERY_DOCUMENTS,
   outputSchema: QueryOutput,
   examples: [
     "mb query --print-schema",
@@ -188,10 +184,10 @@ function compilePermissionFailure(error: HttpError): MetabaseError {
   );
 }
 
-// Held to the query shape after the pre-flight rather than by `readBody`, so a body that is no query
+// Held to the query shape after the pre-flight rather than as it is read, so a body that is no query
 // is a usage error in every mode, as the pre-flight's own refusals are.
 async function readQuery(sources: InputSources, options: PreflightOptions): Promise<DatasetQuery> {
-  const body = await readBody(sources, QueryBody);
+  const body = await readJsonBody(sources, QueryBody);
   preflightQuery(body, options);
   return DatasetQuery.parse(body);
 }
