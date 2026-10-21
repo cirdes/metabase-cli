@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  DATA_SENSITIVITY_GATE,
   type FieldDataSensitivity,
   type FieldDetail,
   fieldDetailSchema,
@@ -13,6 +14,7 @@ import {
   FieldWithDataSensitivity,
 } from "../domain/field";
 import type { RequestOptions, Transport } from "../http/transport";
+import { gateTriggered } from "../version/input-gates";
 import { explainer } from "../version/refusal";
 
 import { fetchOptionalParsed } from "./optional-parsed";
@@ -71,7 +73,9 @@ export function fieldResource(transport: Transport) {
     options: RequestOptions = {},
   ): Promise<FieldDetail> {
     await transport.requireFeatures(
-      params.data_sensitivity === undefined ? [] : ["fieldDataSensitivity"],
+      gateTriggered(DATA_SENSITIVITY_GATE, params.data_sensitivity)
+        ? [DATA_SENSITIVITY_GATE.feature]
+        : [],
       options,
     );
     const { features } = await transport.server(options);
