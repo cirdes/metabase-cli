@@ -33,7 +33,7 @@ packages/client/src/
   resources/                one file per Metabase resource; every /api/ path and transport call
   http/                     the HTTP boundary — transport.ts, errors.ts, network-error.ts,
                             response-shape.ts, sanitize.ts, retry.ts, oauth.ts
-  testing/                  the shipped test doubles — fake-client.ts, fetch-capture.ts
+  testing/                  the unpublished test doubles — fake-client.ts, fetch-capture.ts
   auth/                     OAuth login flow: credential.ts, pkce.ts, callback-server.ts, oauth-*.ts
   version/                  tag.ts, probe.ts, known-range.ts (KNOWN_RANGE), profile.ts (ServerProfile), features.ts (FEATURE_RULES —
                             the only file comparing a Metabase major), requirements.ts (METHOD_REQUIREMENTS),

@@ -348,9 +348,9 @@ so `method`, `query`, `body` and `expectContentType` are set the way a resource 
 
 `@metabase/client` re-exports the curated surface below, and the samples above import from it. The
 package manifest's `exports` map names what is also reachable directly at `@metabase/client/<path>` —
-`@metabase/client/http/transport`, `@metabase/client/testing/fake-client`, every file under `domain/`
-and `resources/` — for what the barrel does not carry, which is how `paginatePages` is reached at
-`@metabase/client/paginate`. A module the map does not name is package-internal and free to move.
+`@metabase/client/http/transport`, every file under `domain/` and `resources/` — for what the
+barrel does not carry, which is how `paginatePages` is reached at `@metabase/client/paginate`. A
+module the map does not name is package-internal and free to move.
 
 ## Public surface
 
