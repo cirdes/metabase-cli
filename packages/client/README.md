@@ -1,11 +1,12 @@
 # @metabase/client
 
-The Metabase API client behind [`@metabase/cli`](../../README.md). It owns the HTTP boundary, a Zod
-schema per Metabase resource, the OAuth login flow, and the server version model.
+The Metabase API client behind [`@metabase/cli`](https://github.com/metabase/metabase-cli#readme).
+It owns the HTTP boundary, a Zod schema per Metabase resource, the OAuth login flow, and the server
+version model.
 
-The package is workspace-internal (`private: true`). `@metabase/cli` consumes it from source and
-inlines it at build time via tsdown's `noExternal`, so the published CLI has no runtime dependency
-on it.
+Install it with its `zod` peer: `npm install @metabase/client zod`. `@metabase/cli` does not install
+it: the CLI consumes the client from source and inlines it at build time via tsdown's `noExternal`,
+so the published CLI has no runtime dependency on it.
 
 `tsdown` here emits one ESM module and one declaration file per `exports` entry into `dist/`, and the
 map names those rather than the source. Installing the packed tarball therefore gets JavaScript Node
@@ -347,9 +348,9 @@ so `method`, `query`, `body` and `expectContentType` are set the way a resource 
 
 `@metabase/client` re-exports the curated surface below, and the samples above import from it. The
 package manifest's `exports` map names what is also reachable directly at `@metabase/client/<path>` —
-`@metabase/client/http/transport`, `@metabase/client/testing/fake-client`, every file under `domain/`
-and `resources/` — for what the barrel does not carry, which is how `paginatePages` is reached at
-`@metabase/client/paginate`. A module the map does not name is package-internal and free to move.
+`@metabase/client/http/transport`, every file under `domain/` and `resources/` — for what the
+barrel does not carry, which is how `paginatePages` is reached at `@metabase/client/paginate`. A
+module the map does not name is package-internal and free to move.
 
 ## Public surface
 

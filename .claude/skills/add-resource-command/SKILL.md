@@ -399,7 +399,7 @@ Add a `<verb>.test.ts` next to a command **only where there is non-orchestration
 **Forbidden unit tests** (silent drift, fail-by-tautology):
 
 - `Schema.parse(fixture).toEqual(fixture)` — only proves Zod works.
-- `vi.mock('citty')` or `vi.mock('@metabase/client/client')` to "test" a command — collapses to "the mock returned what I configured." If the only way to unit-test a branch is to mock a project helper, push the coverage to e2e instead. The client ships `testing/fake-client.ts` and `testing/fetch-capture.ts` as the sanctioned test doubles; reach for those before a module mock.
+- `vi.mock('citty')` or `vi.mock('@metabase/client/client')` to "test" a command — collapses to "the mock returned what I configured." If the only way to unit-test a branch is to mock a project helper, push the coverage to e2e instead. The client's `testing/fake-client.ts` and `testing/fetch-capture.ts` are the sanctioned test doubles; reach for those before a module mock.
 - Tests that re-encode the implementation (e.g. asserting the exact arg list a command passed to a resource method).
 
 When in doubt, push coverage to the e2e tier — it runs the real path. A command whose run body is purely "resolve flags, call the client, render" has nothing meaningful to assert at the unit tier; that's fine, and you should say so explicitly when filling in the sanity-check list at the bottom.

@@ -6,13 +6,13 @@ Why the repo is shaped the way it is. The binding rules are in `CLAUDE.md`; this
 
 A bun workspace. `packages/client` (`@metabase/client`) is the Metabase API client — Zod domain schemas, the HTTP boundary, the OAuth protocol and login flow, the server version model. `packages/cli` (`@metabase/cli`) is the publishable CLI built on it.
 
-The CLI consumes the client as `@metabase/client/<path>` and inlines it at build time through tsdown's `noExternal`, so nothing under `dist/` names the private package. That is why the CLI's manifest never lists it as a dependency.
+The CLI consumes the client as `@metabase/client/<path>` and inlines it at build time through tsdown's `noExternal`, so nothing under the CLI's `dist/` names the client package. That is why the CLI's manifest never lists it as a dependency, and why the two packages release independently: the published CLI carries its own copy of the client rather than resolving the published one.
 
 `zod` is a **peer** dependency of the client, not a normal one. The client's public API is Zod schemas, so the consumer's zod instance is part of the contract — shipping our own copy would hand embedders two incompatible `ZodType` identities.
 
 Root devDependencies hoist and are therefore reachable from the client's source tree. The client's dependency budget (`zod` + `node:` builtins) is a rule to uphold, not something the resolver rejects.
 
-The split is internal. To anyone outside the repo this is the CLI, which is why the root `README.md` is the CLI's user-facing command reference rather than a workspace map, and why `packages/client/README.md` — the client's own reference — is reached only from inside `packages/`. npm renders a README only from the package root, so `packages/cli/README.md` is a pointer to the root one: install, `mb --help`, and the link. The reference itself has one home.
+The root `README.md` is the CLI's user-facing command reference rather than a workspace map, and `packages/client/README.md` is the client's own reference and the page npm renders for `@metabase/client`. npm renders a README only from the package root, so `packages/cli/README.md` is a pointer to the root one: install, `mb --help`, and the link. The reference itself has one home.
 
 ## Resolution: source, not `dist`
 
@@ -24,7 +24,7 @@ Nothing in this workspace compiles that output. The root `tsconfig.json`'s `path
 
 ## What the exports map costs
 
-Because the entry list is derived by globbing, every filename under `domain/` and `resources/` is a published specifier: renaming a file is a breaking change for consumers, and internal helpers in those directories are public whether or not anyone outside imports them. This is a publish-shape decision, not a cleanup — settle it before `private: true` comes off.
+Because the entry list is derived by globbing, every filename under `domain/` and `resources/` is a published specifier: renaming a file is a breaking change for consumers, and a helper in those directories is public whether or not anyone outside imports it — `resources/optional-parsed.ts` and `resources/request-body.ts` serve only other resource modules and are public all the same. The package publishes on that shape: while it is `0.x`, a rename or removal ships in a minor release.
 
 ## Process state belongs to the CLI
 

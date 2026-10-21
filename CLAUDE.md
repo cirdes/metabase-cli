@@ -29,11 +29,11 @@ This file is rules only. Architecture and rationale live in `docs/architecture.m
 
 ## Layout
 
-| Path              | What                                                                                                                                                               |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `packages/client` | Private Metabase API client: Zod `domain/` schemas, `resources/` methods, `http/` boundary, OAuth, `version/` (server profile, feature rules, method requirements) |
-| `packages/cli`    | Publishable CLI: `commands/` (shell only), `core/` (pure logic), `output/` (presentation), `runtime/` (platform glue)                                              |
-| `tests/e2e`       | Built-binary tier against a live Metabase                                                                                                                          |
+| Path              | What                                                                                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/client` | Publishable Metabase API client: Zod `domain/` schemas, `resources/` methods, `http/` boundary, OAuth, `version/` (server profile, feature rules, method requirements) |
+| `packages/cli`    | Publishable CLI: `commands/` (shell only), `core/` (pure logic), `output/` (presentation), `runtime/` (platform glue)                                                  |
+| `tests/e2e`       | Built-binary tier against a live Metabase                                                                                                                              |
 
 - Nothing in `packages/client` may import from `packages/cli`, touch `process`, or mutate process-global state. Its dependency budget is `zod` (peer) + `node:` builtins.
 - Within `packages/client`, only `client.ts` and `resources/` may import from `resources/`. The CLI may `import type` from the resource subpaths the `exports` map publishes.
