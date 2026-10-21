@@ -2515,6 +2515,36 @@ There is no `--skip-validate` escape hatch here. The pre-flight queries live ser
 
 If the chained `PUT /api/dashboard/:id` fails _after_ the create has already inserted the row (rare with pre-flight in place, but possible on a permission / 5xx / network failure mid-flight), the user-facing error is rewritten to `dashboard <id> created but follow-up PUT /api/dashboard/<id> failed: <reason>; dashcards not applied`, so the caller knows the orphan exists. Recovery: `dashboard update <id> --body '{"dashcards":[...]}'` to retry the dashcards, or `dashboard update <id> --body '{"archived":true}'` to archive the orphan.
 
+## Schemas
+
+### `mb schema <command> [subcommand]`
+
+Print the contract of another command as JSON Schema (draft 2020-12): the JSON body it accepts, or with `--output` the JSON it prints. The output is JSON only; `--format text` is refused.
+
+```sh
+mb schema card create                 # the body card create accepts
+mb schema dashboard get --output      # what dashboard get prints
+mb schema query                       # the MBQL 5 query schema
+```
+
+A body is read as input, so a defaulted field is not `required`. A schema that recurs across commands, such as a dashboard parameter, is declared once under `$defs`, keyed by the client's name for it. A tuple keeps its arity (`minItems`, and `items: false` when it takes no more), and a refinement the JSON Schema cannot express is noted in the `description` as `refined: <message>`.
+
+A body field only some Metabase servers take names in its `description` the feature it needs and the servers that hold it: `needs fieldDataSensitivity (v64+)`, `needs tableUserValueWithdrawal (v64+) for null`, `needs dashboardSubscriptionFilters (token dashboard_subscription_filters) when non-empty`. A value that a server holding a feature takes as something else reads `read differently under tableDataLayerTiers (v59+) for "gold", …`, and a field such a server drops unread `dropped by tableFromDefinition (v64+)`. The notes are judged against the server the profile last probed, read from its cache with no request: `; this server rejects it` follows a field that server refuses, `; this server reads it differently` a value it would take as another, and `; this server ignores it` a field it drops. With no cached probe, or with `--url` naming a server the profile was not probed against, the notes stand alone. The server still decides what it accepts. An output carries no feature notes.
+
+A field holding a query the CLI checks against the MBQL 5 schema, such as a card's `dataset_query`, says so in its `description`: ``MBQL 5 query checked against `mb schema query` ``.
+
+`mb schema query` prints the MBQL 5 query schema that `query`, `card`, `transform`, `segment`, `measure` and `data-action` bodies are checked against, as the bundle `{ schema, defs: { "id.yaml", "parameter.yaml", "ref.yaml", "temporal_bucketing.yaml" } }`. The query schema's `$ref`s point into the `defs` namespace by file path; an agent can feed the bundle to Ajv (`addSchema(defs["id.yaml"], "id.yaml")` etc., then `compile(schema)`) or read it as documentation.
+
+| Arg / Flag     | Description                                                                 |
+| -------------- | --------------------------------------------------------------------------- |
+| `<command>`    | The command, or the group holding it (`card`, `query`, …). Aliases resolve. |
+| `[subcommand]` | The command within that group (`create`, `get`, …).                         |
+| `--output`     | Print the schema of the command's output instead of its body.               |
+| `--profile`    | The profile whose cached server the gate notes are judged against.          |
+| `--url`        | The Metabase URL the profile's cached probe must match.                     |
+
+Exit codes: `0` success, `2` when the path names no command, names a group (the error lists its commands), or names a command that takes no JSON body without `--output`, or under `--format text`.
+
 ## UUIDs
 
 ### `mb uuid`

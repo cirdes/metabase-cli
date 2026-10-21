@@ -1,6 +1,7 @@
-import type { ArgDef, ArgsDef, CommandDef, CommandMeta } from "citty";
+import type { ArgDef, ArgsDef, CommandDef, CommandMeta, SubCommandsDef } from "citty";
 import { z } from "zod";
 
+import { ConfigError } from "@metabase/client/errors";
 import { FEATURE_NAMES } from "@metabase/client/version/features";
 import { METHOD_KEYS } from "@metabase/client/version/requirements";
 
@@ -155,15 +156,46 @@ export async function resolveCommandPath(
   segments: readonly string[],
 ): Promise<CommandDef> {
   let current: CommandDef = root;
-  for (const segment of segments) {
+  for (const [index, segment] of segments.entries()) {
     const subCommands = await resolveCitty(current.subCommands);
-    const next = subCommands === undefined ? undefined : await resolveCitty(subCommands[segment]);
-    if (next === undefined) {
-      throw new Error(`unknown command path segment '${segment}'`);
+    const match = subCommands === undefined ? null : await findSubCommand(subCommands, segment);
+    if (match === null) {
+      throw new ConfigError(`unknown command: ${segments.slice(0, index + 1).join(" ")}`);
     }
-    current = next;
+    current = match.command;
   }
   return current;
+}
+
+interface SubCommandMatch {
+  name: string;
+  command: CommandDef;
+}
+
+export async function findSubCommand(
+  subCommands: SubCommandsDef,
+  token: string,
+): Promise<SubCommandMatch | null> {
+  const direct = Object.hasOwn(subCommands, token) ? subCommands[token] : undefined;
+  if (direct !== undefined) {
+    const command = await resolveCitty(direct);
+    if (command === undefined) {
+      return null;
+    }
+    const meta = await resolveCitty(command.meta);
+    return { name: meta?.name ?? token, command };
+  }
+  for (const [key, loader] of Object.entries(subCommands)) {
+    const command = await resolveCitty(loader);
+    if (command === undefined) {
+      continue;
+    }
+    const meta = await resolveCitty(command.meta);
+    if (toAliasArray(meta?.alias).includes(token)) {
+      return { name: meta?.name ?? key, command };
+    }
+  }
+  return null;
 }
 
 async function walk<T extends ArgsDef>(
