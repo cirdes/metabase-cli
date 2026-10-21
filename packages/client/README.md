@@ -472,7 +472,7 @@ dependency graph's `DependencyFindingError`, the entity relationship diagram's `
 Request bodies (`<Resource>CreateInput`, `<Resource>UpdateInput`, and `MetricDefinition`, the expression
 over metric and measure leaves that `metric.query` and `metric.breakoutValues` run) and the domain vocabulary enums
 (`FieldBaseType`, `SearchModel`, `CollectionItemModel`, …) live in the same modules and are reached
-at `@metabase/client/domain/<resource>`.
+at `@metabase/client/domain/<resource>`. `DashboardCreateInput` holds only the fields `POST /api/dashboard` reads and refuses any other key, so a dashboard's layout (`dashcards`, `tabs`) is a `DashboardLayoutInput`, sent through `dashboard.update` once the dashboard exists.
 
 ### Utilities
 

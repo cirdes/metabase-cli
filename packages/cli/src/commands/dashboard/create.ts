@@ -1,4 +1,8 @@
-import { Dashboard, DashboardCreateInput } from "@metabase/client/domain/dashboard";
+import {
+  Dashboard,
+  DashboardCreateInput,
+  DashboardLayoutInput,
+} from "@metabase/client/domain/dashboard";
 import { dashboardView } from "../../output/views/dashboard";
 import { renderSummary } from "../../output/render";
 import { readBody } from "../../runtime/body";
@@ -7,6 +11,8 @@ import { connectionFlags, outputFlags, profileFlag } from "../flags";
 import { defineMetabaseCommand } from "../runtime";
 
 import { preflightDashcardCardReferences, wrapChainedDashboardWriteError } from "./preflight";
+
+const DashboardCreateBody = DashboardCreateInput.extend(DashboardLayoutInput.shape).loose();
 
 export default defineMetabaseCommand({
   meta: {
@@ -26,7 +32,7 @@ export default defineMetabaseCommand({
     ...connectionFlags,
     ...bodyInputFlags,
   },
-  inputSchema: DashboardCreateInput,
+  inputSchema: DashboardCreateBody,
   outputSchema: Dashboard,
   examples: [
     "cat dashboard.json | mb dashboard create",
@@ -35,7 +41,7 @@ export default defineMetabaseCommand({
     'mb dashboard create --body \'{"name":"D","dashcards":[{"id":-1,"card_id":42,"row":0,"col":0,"size_x":12,"size_y":6}]}\'',
   ],
   async run({ args, ctx, getClient }) {
-    const body = await readBody({ flag: args.body, file: args.file }, DashboardCreateInput);
+    const body = await readBody({ flag: args.body, file: args.file }, DashboardCreateBody);
     const { dashcards, tabs, ...createOnly } = body;
     const client = await getClient();
     await preflightDashcardCardReferences(client, dashcards);

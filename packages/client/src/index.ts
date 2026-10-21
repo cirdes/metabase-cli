@@ -163,6 +163,7 @@ export {
   DashboardCopyInput,
   DashboardCreateInput,
   DashboardDetail,
+  DashboardLayoutInput,
   DashboardListFilter,
   DashboardParameterConstraints,
   DashboardTab,
@@ -203,6 +204,7 @@ export {
   DatabaseGetInclude,
   DatabaseListInclude,
   DatabaseSyncResult,
+  DatabaseUpdateInput,
   DatabaseVirtualTable,
   DatabaseVirtualTableCompact,
 } from "./domain/database";
