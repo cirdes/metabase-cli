@@ -4,6 +4,7 @@ import {
   PythonLibrary,
   type PythonLibraryUpdateInput,
   PythonTestRunError,
+  pythonTestRunBody,
   type PythonTestRunInput,
   PythonTestRunOutput,
   type PythonTestRunResult,
@@ -56,10 +57,11 @@ export function transformPythonResource(transport: Transport) {
     params: PythonTestRunInput,
     options: RequestOptions = {},
   ): Promise<PythonTestRunResult> {
+    const { features } = await transport.server(options);
     return transport.requestParsed(PythonApiTestRun, "/api/ee/transforms-python/test-run", {
       ...options,
       method: "POST",
-      body: params,
+      body: pythonTestRunBody(params, features),
     });
   }
 

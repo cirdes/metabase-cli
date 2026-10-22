@@ -50,7 +50,8 @@ function entityLocation({ type, data }: DependencyEntity): string | null {
     }
     case "snippet":
     case "dashboard":
-    case "document": {
+    case "document":
+    case "action": {
       return data.collection?.name ?? null;
     }
     case "transform":

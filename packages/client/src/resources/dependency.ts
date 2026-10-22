@@ -42,10 +42,15 @@ export interface DependencyItemListParams {
 
 export type DependencyItemPageOptions = Omit<PaginateOptions, "query">;
 
-// A server older than measure graphs rejects a measure as the starting entity with a 400 naming
-// `type`.
-function graphTypeFeatures(type: DependencyType): ParameterRequirement[] {
-  return type === "measure" ? [{ feature: "measureDependencyGraph", fields: ["type"] }] : [];
+// A server older than measure or action graphs rejects one as the entity with a 400 naming `type`.
+function entityTypeFeatures(type: DependencyType): ParameterRequirement[] {
+  if (type === "measure") {
+    return [{ feature: "measureDependencyGraph", fields: ["type"] }];
+  }
+  if (type === "action") {
+    return [{ feature: "actionDependencyGraph", fields: ["type"] }];
+  }
+  return [];
 }
 
 export function dependencyResource(transport: Transport) {
@@ -54,7 +59,8 @@ export function dependencyResource(transport: Transport) {
   /**
    * The upstream dependency graph of one entity. `nodes` holds the starting entity plus every
    * entity it depends on, directly or transitively; each edge runs from the dependent to what it
-   * depends on. A measure starts a graph only on a server with `measureDependencyGraph`.
+   * depends on. A measure starts a graph only on a server with `measureDependencyGraph`, and an
+   * action only on one with `actionDependencyGraph`.
    */
   async function graph(
     type: DependencyType,
@@ -182,9 +188,9 @@ export function dependencyResource(transport: Transport) {
   }
 
   return {
-    graph: explain("graph", graph, graphTypeFeatures),
-    dependents: explain("dependents", dependents),
-    broken: explain("broken", broken),
+    graph: explain("graph", graph, entityTypeFeatures),
+    dependents: explain("dependents", dependents, entityTypeFeatures),
+    broken: explain("broken", broken, entityTypeFeatures),
     unreferencedPages: explainWalk("unreferencedPages", unreferencedPages),
     breakingPages: explainWalk("breakingPages", breakingPages),
   };

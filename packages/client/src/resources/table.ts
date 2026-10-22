@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 import {
+  DATA_AUTHORITY_WITHDRAWAL_GATE,
+  DATA_LAYER_MEDALLION_GATE,
+  DATA_LAYER_TIER_GATE,
   Table,
   type TableBulkEditInput,
   type TableBulkEditResult,
@@ -21,6 +24,7 @@ import type { RequestOptions, Transport } from "../http/transport";
 import type { ListResult } from "../list";
 import type { FeatureName } from "../version/features";
 import { CapabilityError } from "../version/capability-error";
+import { gateTriggered } from "../version/input-gates";
 import { explainer, type ParameterRequirement } from "../version/refusal";
 import { supersedingFeature } from "../version/requirement-check";
 
@@ -82,11 +86,9 @@ function dataLayerFeatures(
   value: TableDataLayer | null | undefined,
   field: keyof TableListParams | keyof TableUpdateInput,
 ): ParameterRequirement[] {
-  return isTierName(value) ? [{ feature: "tableDataLayerTiers", fields: [field] }] : [];
-}
-
-function isTierName(value: TableDataLayer | null | undefined): boolean {
-  return value !== null && value !== undefined && TableDataLayerTier.safeParse(value).success;
+  return gateTriggered(DATA_LAYER_TIER_GATE, value)
+    ? [{ feature: DATA_LAYER_TIER_GATE.feature, fields: [field] }]
+    : [];
 }
 
 const UPLOAD_UPDATE_PATHS: Record<UploadUpdateAction, string> = {
@@ -159,7 +161,7 @@ export function tableResource(transport: Transport) {
     value: TableDataLayer | null | undefined,
     options: RequestOptions,
   ): Promise<void> {
-    if (value === null || value === undefined || isTierName(value)) {
+    if (!gateTriggered(DATA_LAYER_MEDALLION_GATE, value)) {
       return;
     }
     const profile = await transport.preflightServer(options);
@@ -168,7 +170,7 @@ export function tableResource(transport: Transport) {
     }
     const tiers = TableDataLayerTier.options.join(", ");
     const detail = `data_layer "${value}" is a medallion name; this server names a table's layer ${tiers} and would map it onto one of those without a word`;
-    const failure = supersedingFeature("tableDataLayerTiers", profile, detail);
+    const failure = supersedingFeature(DATA_LAYER_MEDALLION_GATE.feature, profile, detail);
     if (failure !== null) {
       transport.refuseBeforeSending(new CapabilityError(failure));
     }
@@ -273,8 +275,8 @@ export function tableResource(transport: Transport) {
     value: TableUpdateInput["data_authority"],
     options: RequestOptions,
   ): Promise<void> {
-    if (value === null) {
-      await transport.requireFeatures(["tableUserValueWithdrawal"], options);
+    if (gateTriggered(DATA_AUTHORITY_WITHDRAWAL_GATE, value)) {
+      await transport.requireFeatures([DATA_AUTHORITY_WITHDRAWAL_GATE.feature], options);
     }
   }
 

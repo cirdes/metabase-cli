@@ -12,7 +12,7 @@ export type NotificationPayloadType = z.infer<typeof NotificationPayloadType>;
 
 // The payload type of a question alert. /api/notification also serves Metabase's internal
 // system-event notifications, so every `mb alert` request scopes itself to this one.
-export const CARD_PAYLOAD_TYPE: NotificationPayloadType = "notification/card";
+export const CARD_PAYLOAD_TYPE = "notification/card" satisfies NotificationPayloadType;
 
 export const NotificationSendCondition = z.enum(["has_result", "goal_above", "goal_below"]);
 export type NotificationSendCondition = z.infer<typeof NotificationSendCondition>;
@@ -137,6 +137,22 @@ export const Notification = z
   })
   .loose();
 export type Notification = z.infer<typeof Notification>;
+
+// A notification read by id may be of any payload type, and only a question alert's payload has the
+// card shape: a dashboard subscription's names a dashboard, and a system event's is null. Every other
+// type is read no further than its type, so a caller can refuse it as not a question alert.
+const NotificationOfOtherType = z
+  .object({
+    id: z.number().int(),
+    payload_type: NotificationPayloadType.exclude([CARD_PAYLOAD_TYPE]),
+  })
+  .loose();
+
+export const AnyNotification = z.discriminatedUnion("payload_type", [
+  Notification.extend({ payload_type: z.literal(CARD_PAYLOAD_TYPE) }),
+  NotificationOfOtherType,
+]);
+export type AnyNotification = z.infer<typeof AnyNotification>;
 
 export const NotificationCompact = Notification.pick({
   id: true,

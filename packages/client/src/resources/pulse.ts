@@ -1,8 +1,14 @@
 import { z } from "zod";
 
-import { Pulse, type PulseCreateInput, type PulseUpdateInput } from "../domain/pulse";
+import {
+  Pulse,
+  type PulseCreateInput,
+  type PulseUpdateInput,
+  SUBSCRIPTION_FILTERS_GATE,
+} from "../domain/pulse";
 import type { RequestOptions, Transport } from "../http/transport";
 import type { ListResult } from "../list";
+import { gateTriggered } from "../version/input-gates";
 
 // `GET /api/pulse` answers a bare array rather than a `{ data, total }` envelope, so the count a
 // caller reads off `ListResult` is the array's own length and the server reports none.
@@ -92,8 +98,8 @@ export function pulseResource(transport: Transport) {
     parameters: PulseCreateInput["parameters"],
     options: RequestOptions,
   ): Promise<void> {
-    if (parameters !== undefined && parameters.length > 0) {
-      await transport.requireFeatures(["dashboardSubscriptionFilters"], options);
+    if (gateTriggered(SUBSCRIPTION_FILTERS_GATE, parameters)) {
+      await transport.requireFeatures([SUBSCRIPTION_FILTERS_GATE.feature], options);
     }
   }
 

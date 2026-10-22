@@ -1,7 +1,6 @@
 import { ApiKeyCreateInput, CreatedApiKey } from "@metabase/client/domain/api-key";
 import { createdApiKeyView } from "../../output/views/api-key";
 import { renderSummary } from "../../output/render";
-import { readBody } from "../../runtime/body";
 import { bodyInputFlags } from "../body-flags";
 import { connectionFlags, outputFlags, profileFlag } from "../flags";
 import { defineMetabaseCommand } from "../runtime";
@@ -15,8 +14,8 @@ export default defineMetabaseCommand({
   inputSchema: ApiKeyCreateInput,
   outputSchema: CreatedApiKey,
   examples: ['mb api-key create --body \'{"name":"ci","group_id":2}\' --json'],
-  async run({ args, ctx, getClient }) {
-    const body = await readBody({ flag: args.body, file: args.file }, ApiKeyCreateInput);
+  async run({ args, ctx, getClient, readBody }) {
+    const body = await readBody({ flag: args.body, file: args.file });
     const client = await getClient();
     const created = await client.apiKey.create(body);
     renderSummary(

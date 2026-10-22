@@ -36,9 +36,13 @@ import { reportError } from "../output/error";
 import { preflightSkippedNotice, preflightUncheckedNotice, warn } from "../output/notice";
 import {
   type CommandRequirements,
+  type EmbeddedQuery,
+  type JsonSchemaSource,
+  type SchemaContract,
   setMetabaseAugment,
   type SkillPointer,
 } from "../runtime/command-augment";
+import { readJsonBody, type BodySources } from "../runtime/body";
 import { interruptSignal } from "../runtime/interrupt";
 import {
   resolveCommonFlags,
@@ -55,21 +59,61 @@ interface MetabaseCommandContext<A extends ArgsDef> {
   getResolvedConfig: () => Promise<ResolvedConfig>;
 }
 
-interface MetabaseCommandDef<A extends ArgsDef> {
+interface BodyCommandContext<A extends ArgsDef, I> extends MetabaseCommandContext<A> {
+  readBody: BodyReader<I>;
+}
+
+export type BodyReader<I> = (sources: BodySources) => Promise<I>;
+
+type CommandRun<C> = (context: C) => Promise<void> | void;
+
+interface MetabaseCommandFields<A extends ArgsDef> {
   meta: CommandMeta;
   args: A;
   examples?: readonly string[];
   details?: string;
   skills?: readonly SkillPointer[];
-  inputSchema?: ZodType;
   outputSchema?: ZodType;
   // `null` for a command that never reaches a server.
   requires: readonly MethodKey[] | null;
-  run: (context: MetabaseCommandContext<A>) => Promise<void> | void;
 }
 
+interface NoBodyDef<A extends ArgsDef> extends MetabaseCommandFields<A> {
+  inputSchema?: never;
+  embeddedDocuments?: never;
+  inputDocuments?: never;
+  run: CommandRun<MetabaseCommandContext<A>>;
+}
+
+interface ZodBodyDef<A extends ArgsDef, I> extends MetabaseCommandFields<A> {
+  inputSchema: ZodType<I>;
+  embeddedDocuments?: readonly EmbeddedQuery[];
+  inputDocuments?: never;
+  run: CommandRun<BodyCommandContext<A, I>>;
+}
+
+interface DocumentsBodyDef<A extends ArgsDef> extends MetabaseCommandFields<A> {
+  inputSchema?: never;
+  embeddedDocuments?: never;
+  inputDocuments: JsonSchemaSource;
+  run: CommandRun<MetabaseCommandContext<A>>;
+}
+
+type MetabaseCommandDef<A extends ArgsDef, I> =
+  | NoBodyDef<A>
+  | ZodBodyDef<A, I>
+  | DocumentsBodyDef<A>;
+
+// One signature per body kind, so `run` is typed by the def it sits in: only a command that declares
+// a Zod body is handed `readBody`.
+export function defineMetabaseCommand<const A extends ArgsDef, I>(
+  def: ZodBodyDef<A, I>,
+): CommandDef<A>;
 export function defineMetabaseCommand<const A extends ArgsDef>(
-  def: MetabaseCommandDef<A>,
+  def: NoBodyDef<A> | DocumentsBodyDef<A>,
+): CommandDef<A>;
+export function defineMetabaseCommand<const A extends ArgsDef, I>(
+  def: MetabaseCommandDef<A, I>,
 ): CommandDef<A> {
   const requirements = def.requires === null ? null : deriveRequirements(def.requires);
   const cmd = defineCommand<A>({
@@ -128,12 +172,11 @@ export function defineMetabaseCommand<const A extends ArgsDef>(
           return client;
         };
         try {
-          await def.run({
-            args,
-            ctx,
-            getClient,
-            getResolvedConfig,
-          });
+          await runCommandBody(
+            def,
+            { args, ctx, getClient, getResolvedConfig },
+            args["skip-validate"] === true,
+          );
         } catch (error) {
           throw await diagnoseFailure(error, run);
         } finally {
@@ -149,11 +192,53 @@ export function defineMetabaseCommand<const A extends ArgsDef>(
     examples: def.examples ?? [],
     details: def.details ? def.details : null,
     skills: def.skills ?? [],
-    inputSchema: def.inputSchema ?? null,
+    input: inputContract(def),
     outputSchema: def.outputSchema ?? null,
     requires: requirements,
   });
   return cmd;
+}
+
+function runCommandBody<A extends ArgsDef, I>(
+  def: MetabaseCommandDef<A, I>,
+  context: MetabaseCommandContext<A>,
+  skip: boolean,
+): Promise<void> | void {
+  if (def.inputSchema === undefined) {
+    return def.run(context);
+  }
+  return def.run({ ...context, readBody: (sources) => readDeclaredBody(def, sources, skip) });
+}
+
+type DeclaredBody<I> = Pick<ZodBodyDef<ArgsDef, I>, "inputSchema" | "embeddedDocuments">;
+
+async function readDeclaredBody<I>(
+  body: DeclaredBody<I>,
+  sources: BodySources,
+  skip: boolean,
+): Promise<I> {
+  const parsed = await readJsonBody(sources, body.inputSchema);
+  const embedded = body.embeddedDocuments ?? [];
+  // Loaded only here, so the bundled MBQL schema stays off the chunk every command loads.
+  if (embedded.length > 0) {
+    const { preflightEmbeddedQuery } = await import("./validate-query");
+    for (const query of embedded) {
+      preflightEmbeddedQuery(parsed, query, { skip });
+    }
+  }
+  return parsed;
+}
+
+function inputContract<A extends ArgsDef, I>(
+  body: MetabaseCommandDef<A, I>,
+): SchemaContract | null {
+  if (body.inputDocuments !== undefined) {
+    return { kind: "documents", source: body.inputDocuments };
+  }
+  if (body.inputSchema === undefined) {
+    return null;
+  }
+  return { kind: "zod", schema: body.inputSchema, embedded: body.embeddedDocuments ?? [] };
 }
 
 function deriveRequirements(methods: readonly MethodKey[]): CommandRequirements {

@@ -1,10 +1,14 @@
 import { ConfigError } from "@metabase/client/errors";
+import { isPlainObject } from "@metabase/client/predicates";
+
 import {
   assertNotLegacyEnvelopeWrappingMbql5,
+  getQuerySchemaBundle,
   isMbql5Query,
   validateQuery,
 } from "../core/schema/validate";
 import { writeJson } from "../output/render";
+import type { EmbeddedQuery, JsonSchemaSource } from "../runtime/command-augment";
 
 export const skipValidateFlag = {
   "skip-validate": {
@@ -14,50 +18,66 @@ export const skipValidateFlag = {
   },
 } as const;
 
-interface PreflightLabels {
-  readonly contextLabel: string;
-  readonly bodyNoun: string;
+export const QUERY_DOCUMENTS: JsonSchemaSource = {
+  title: "MBQL 5 query",
+  command: ["query"],
+  bundle: getQuerySchemaBundle(),
+};
+
+// A python source is loose, so a stray `query` beside its body is not a query to check.
+function hasQuerySource(body: unknown): boolean {
+  return valueAt(body, ["source", "type"]) === "query";
 }
 
-export const CARD_DATASET_QUERY_LABELS: PreflightLabels = {
-  contextLabel: "card.dataset_query validation failed",
-  bodyNoun: "dataset_query",
+export const CARD_DATASET_QUERY: EmbeddedQuery = {
+  resource: "card",
+  path: ["dataset_query"],
+  when: null,
+  documents: QUERY_DOCUMENTS,
 };
-
-export const DATA_ACTION_DATASET_QUERY_LABELS: PreflightLabels = {
-  contextLabel: "dataAction.dataset_query validation failed",
-  bodyNoun: "dataset_query",
+export const DATA_ACTION_DATASET_QUERY: EmbeddedQuery = {
+  resource: "dataAction",
+  path: ["dataset_query"],
+  when: null,
+  documents: QUERY_DOCUMENTS,
 };
-
-export const TRANSFORM_SOURCE_QUERY_LABELS: PreflightLabels = {
-  contextLabel: "transform.source.query validation failed",
-  bodyNoun: "source.query",
+export const TRANSFORM_SOURCE_QUERY: EmbeddedQuery = {
+  resource: "transform",
+  path: ["source", "query"],
+  when: hasQuerySource,
+  documents: QUERY_DOCUMENTS,
 };
-
-export const MEASURE_DEFINITION_LABELS: PreflightLabels = {
-  contextLabel: "measure.definition validation failed",
-  bodyNoun: "definition",
+export const MEASURE_DEFINITION: EmbeddedQuery = {
+  resource: "measure",
+  path: ["definition"],
+  when: null,
+  documents: QUERY_DOCUMENTS,
 };
-
-export const SEGMENT_DEFINITION_LABELS: PreflightLabels = {
-  contextLabel: "segment.definition validation failed",
-  bodyNoun: "definition",
+export const SEGMENT_DEFINITION: EmbeddedQuery = {
+  resource: "segment",
+  path: ["definition"],
+  when: null,
+  documents: QUERY_DOCUMENTS,
 };
 
 interface PreflightOptions {
   readonly skip: boolean;
 }
 
-// Only an `mbql/query` body has a bundled schema; a legacy `{type: …}` body goes out unchecked.
-export function preflightMbql5Query(
-  query: unknown,
-  labels: PreflightLabels,
+// Only an `mbql/query` query has a bundled schema.
+export function preflightEmbeddedQuery(
+  body: unknown,
+  embedded: EmbeddedQuery,
   options: PreflightOptions,
 ): void {
-  if (options.skip) {
+  const holdsNoQuery = embedded.when !== null && !embedded.when(body);
+  if (options.skip || holdsNoQuery) {
     return;
   }
-  assertNotLegacyEnvelopeWrappingMbql5(query, labels);
+  const query = valueAt(body, embedded.path);
+  const bodyNoun = embedded.path.join(".");
+  const contextLabel = `${embedded.resource}.${bodyNoun} validation failed`;
+  assertNotLegacyEnvelopeWrappingMbql5(query, { contextLabel, bodyNoun });
   if (!isMbql5Query(query)) {
     return;
   }
@@ -67,6 +87,17 @@ export function preflightMbql5Query(
   }
   writeJson(outcome);
   throw new ConfigError(
-    `${labels.contextLabel}: ${outcome.errors.length} error(s) — fix them, or pass --skip-validate to send anyway`,
+    `${contextLabel}: ${outcome.errors.length} error(s) — fix them, or pass --skip-validate to send anyway`,
   );
+}
+
+function valueAt(body: unknown, path: readonly string[]): unknown {
+  let value = body;
+  for (const key of path) {
+    if (!isPlainObject(value)) {
+      return undefined;
+    }
+    value = value[key];
+  }
+  return value;
 }

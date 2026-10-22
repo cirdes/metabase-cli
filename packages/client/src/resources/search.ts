@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { type SearchModel, SearchResult } from "../domain/search";
 import type { RequestOptions, Transport } from "../http/transport";
+import type { FeatureName } from "../version/features";
 import { explainer, type ParameterRequirement } from "../version/refusal";
 
 // `GET /api/search` applies the window itself and reports the count across the whole result set,
@@ -43,6 +44,30 @@ function verifiedFeatures(params: SearchParams = {}): ParameterRequirement[] {
   return params.verified === true ? [{ feature: "contentVerification", fields: ["verified"] }] : [];
 }
 
+const MODELS_FIELDS = ["models"];
+
+// A server older than one of these models answers 400 naming `models`. Metabase 58 takes
+// `transform` on an enterprise build alone, which `transforms` places from 59.
+const SEARCH_MODEL_FEATURES: Partial<Record<SearchModel, FeatureName>> = {
+  measure: "measures",
+  transform: "transforms",
+  exploration: "explorations",
+};
+
+function modelFeatures(params: SearchParams): ParameterRequirement[] {
+  if (params.models === undefined) {
+    return [];
+  }
+  return params.models.flatMap((model) => {
+    const feature = SEARCH_MODEL_FEATURES[model];
+    return feature === undefined ? [] : [{ feature, fields: MODELS_FIELDS }];
+  });
+}
+
+function queryFeatures(params: SearchParams = {}): ParameterRequirement[] {
+  return [...verifiedFeatures(params), ...modelFeatures(params)];
+}
+
 export function searchResource(transport: Transport) {
   const { explain } = explainer(transport, "search");
 
@@ -57,7 +82,9 @@ export function searchResource(transport: Transport) {
    * default), and `limit`/`offset` are the window the server applies before ranking hydration.
    * `verified` needs the `content_verification` premium feature, and is refused before the wire
    * without it: a server granting neither it nor `official_collections` refuses the filter, and one
-   * granting `official_collections` alone takes it without applying it.
+   * granting `official_collections` alone takes it without applying it. `models` takes `measure`
+   * only with `measures`, `transform` with `transforms` or on a Metabase 58 enterprise build, and
+   * `exploration` only with `explorations`.
    */
   async function query(
     params: SearchParams = {},
@@ -87,5 +114,5 @@ export function searchResource(transport: Transport) {
     return { data: response.data, total: response.total };
   }
 
-  return { query: explain("query", query, verifiedFeatures) };
+  return { query: explain("query", query, queryFeatures) };
 }

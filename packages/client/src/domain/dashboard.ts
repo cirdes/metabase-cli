@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Card } from "./card";
 import { EmbeddingParams } from "./embedding";
 import { Parameter, ParameterMapping } from "./parameter";
+import { NonBlankText } from "./text";
 
 const DashboardWidth = z.enum(["fixed", "full"]);
 
@@ -80,7 +81,7 @@ export type UnreadableCard = z.infer<typeof UnreadableCard>;
  * A dashcard as a dashboard read or write returns it, with its card whole in `card`. An action
  * button bound to a model carries the model there and the action in `action_id`. A dashcard bound to
  * no card (a text, heading, link, iframe or placeholder dashcard, or an action button bound to no
- * model, which `visualization_settings.virtual_card` names) has `card_id` and `card` both `null`.
+ * model, which `visualization_settings.virtual_card` names) has `card_id` `null`, and its `card` reads as `null`.
  */
 export const DashcardDetail = Dashcard.extend({
   action_id: z.number().int().nullable(),
@@ -137,6 +138,26 @@ export const DashboardDetail = Dashboard.extend({
 });
 export type DashboardDetail = z.infer<typeof DashboardDetail>;
 
+// The server hydrates a query duration and download permissions onto a dashcard's card even when it
+// has none, so a dashcard bound to no card answers a stub such as
+// `{ query_average_duration: null, download_perms: "none" }` rather than `null`.
+const NoCardStub = z
+  .object({ id: z.never().optional(), name: z.never().optional() })
+  .loose()
+  .transform(() => null);
+
+const DashcardDetailWire = DashcardDetail.extend({
+  card: z.union([Card, UnreadableCard, NoCardStub]).nullable(),
+});
+
+/**
+ * The dashboard `GET` and `PUT /api/dashboard/{id}` answer, read as `DashboardDetail`: the stub card
+ * of a dashcard bound to no card reads as `null`.
+ */
+export const dashboardDetailSchema: z.ZodType<DashboardDetail> = DashboardDetail.extend({
+  dashcards: z.array(DashcardDetailWire),
+});
+
 export const DashboardCompact = Dashboard.pick({
   id: true,
   name: true,
@@ -179,21 +200,28 @@ const DashboardTabWrite = z
   })
   .loose();
 
-// The server's POST /api/dashboard takes no dashcards/tabs; the create command
-// accepts them anyway and applies them through a follow-up PUT.
+// The six keys every supported server reads. Any other key is dropped before the request, as the
+// server drops it, so a body read back from a dashboard still creates one; a layout goes through an
+// update instead.
 export const DashboardCreateInput = z
   .object({
-    name: z.string().min(1),
+    name: NonBlankText,
     description: z.string().nullable().optional(),
     parameters: z.array(Parameter).nullable().optional(),
     cache_ttl: z.number().int().positive().nullable().optional(),
     collection_id: z.number().int().positive().nullable().optional(),
     collection_position: z.number().int().positive().nullable().optional(),
+  })
+  .strip();
+export type DashboardCreateInput = z.infer<typeof DashboardCreateInput>;
+
+export const DashboardLayoutInput = z
+  .object({
     dashcards: z.array(DashcardWrite).optional(),
     tabs: z.array(DashboardTabWrite).optional(),
   })
   .loose();
-export type DashboardCreateInput = z.infer<typeof DashboardCreateInput>;
+export type DashboardLayoutInput = z.infer<typeof DashboardLayoutInput>;
 
 export const DashboardUpdateInput = z
   .object({

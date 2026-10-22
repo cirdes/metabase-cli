@@ -13,6 +13,7 @@ export const DependencyType = z.enum([
   "sandbox",
   "segment",
   "measure",
+  "action",
 ]);
 export type DependencyType = z.infer<typeof DependencyType>;
 
@@ -28,6 +29,7 @@ export const DependencyUsageType = z.enum([
   "model",
   "metric",
   "measure",
+  "action",
 ]);
 export type DependencyUsageType = z.infer<typeof DependencyUsageType>;
 
@@ -91,14 +93,18 @@ const DependencyTableRef = z
   })
   .loose();
 
+// An action's own type: a saved query, or a row operation implied by a model's table.
+const DependencyActionType = z.enum(["implicit", "query"]);
+
 // The wire carries a per-type subset of these keys on every server: a table names a schema and a
-// database, a card a collection and a card type, and none of the nine types sends every key.
+// database, a card a collection and a card type, an action a collection and an action type, and no
+// type sends every key.
 export const DependencyEntityData = z
   .object({
     name: z.string().nullable().optional(),
     display_name: z.string().nullable().optional(),
     description: z.string().nullable().optional(),
-    type: CardType.nullable().optional(),
+    type: z.union([CardType, DependencyActionType]).nullable().optional(),
     display: z.string().nullable().optional(),
     database_id: z.number().int().nullable().optional(),
     db_id: z.number().int().nullable().optional(),

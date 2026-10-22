@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import type { Features } from "../version/features";
+import { gateInput } from "../version/input-gate-registry";
+import type { InputGate } from "../version/input-gates";
 import { Collection, CollectionId, CollectionType } from "./collection";
 import { TableSelectors } from "./table";
 
@@ -46,10 +48,18 @@ export type LibraryCollectionInfo = z.infer<typeof LibraryCollectionInfo>;
 
 export type LibraryListing = ReadonlyMap<number, LibraryCollectionInfo>;
 
+// A server without the feature publishes into its one Library data collection and drops
+// `collection_id` unread; a server with it requires the key, so every server is sent it.
+export const PUBLISH_TARGET_COLLECTION_GATE: InputGate = {
+  feature: "tablePublishTargetCollection",
+  effect: "needs",
+  when: { kind: "present" },
+};
+
 // The tables to publish and the Library data collection that receives them. Strict like the
 // selectors it extends.
 export const LibraryPublishTablesInput = TableSelectors.extend({
-  collection_id: z.number().int().positive(),
+  collection_id: gateInput(z.number().int().positive(), PUBLISH_TARGET_COLLECTION_GATE),
 }).strict();
 export type LibraryPublishTablesInput = z.infer<typeof LibraryPublishTablesInput>;
 

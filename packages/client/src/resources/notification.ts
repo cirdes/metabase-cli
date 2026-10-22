@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  AnyNotification,
   CARD_PAYLOAD_TYPE,
   Notification,
   NotificationCardPayload,
@@ -26,7 +27,7 @@ export interface NotificationListParams {
 // /api/notification is shared with Metabase's internal system-event notifications, whose ids sit
 // alongside the question alerts'. Reading one as an alert would be confusing, and sending one would
 // fire an internal Metabase email, so every by-id verb loads the notification through here.
-export function assertCardAlert(notification: Notification): Notification {
+export function assertCardAlert(notification: AnyNotification): Notification {
   if (notification.payload_type !== CARD_PAYLOAD_TYPE) {
     throw new ConfigError(
       `notification ${notification.id} is a ${notification.payload_type}, not a question alert — this operation accepts card alerts only`,
@@ -91,7 +92,7 @@ export function notificationResource(transport: Transport) {
 
   /** Get one question alert by id, refusing an id that names a system-event notification. */
   async function get(id: number, options: RequestOptions = {}): Promise<Notification> {
-    const notification = await transport.requestParsed(Notification, `/api/notification/${id}`, {
+    const notification = await transport.requestParsed(AnyNotification, `/api/notification/${id}`, {
       ...options,
     });
     return assertCardAlert(notification);

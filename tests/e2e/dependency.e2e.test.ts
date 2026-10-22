@@ -26,7 +26,7 @@ const DEPENDENCIES_REFUSAL =
   "This operation requires the 'dependencies' premium feature (not enabled on this server).";
 const DOWNGRADE_REMEDY = "Or install an `@metabase/cli` release that targets this server.";
 const DEPENDENCY_TYPES =
-  "table, card, snippet, transform, dashboard, document, sandbox, segment, measure";
+  "table, card, snippet, transform, dashboard, document, sandbox, segment, measure, action";
 const CARD_TYPES = "question, model, metric";
 const DEFAULT_COLLECTION_NAME = "E2E Default";
 const WAREHOUSE_DB_NAME = "Warehouse";
