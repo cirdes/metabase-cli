@@ -69,12 +69,12 @@ export function AppError({ message }: SdkErrorComponentProps) {
 
 ## SDK components
 
-| Import                                                                           | For                                                                   |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `StaticQuestion`                                                                 | A chart, KPI or table without drill-through — the default.            |
-| `InteractiveQuestion`                                                            | One meant to be explored: drill-through, chart switching, the editor. |
-| `StaticDashboard`, `InteractiveDashboard`, `EditableDashboard`                   | A dashboard.                                                          |
-| `CreateQuestion`, `MetabotQuestion`, `CollectionBrowser`, `CreateDashboardModal` | Authoring flows, rarely in an app.                                    |
+| Import                | For                                                                                     |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| `StaticQuestion`      | A chart, KPI or table without drill-through — the default.                              |
+| `InteractiveQuestion` | One meant to be explored: drill-through, chart switching; pass `isSaveEnabled={false}`. |
+
+Both take a question in the app's collection. Dashboards and the authoring components (`CreateQuestion`, `MetabotQuestion`, `CollectionBrowser`, `CreateDashboardModal`, saving from the editor) don't work in an app: its collection can't hold a dashboard, and an app's requests can only read and run its own questions and actions.
 
 ## A Metabase chart or your own
 

@@ -17,7 +17,7 @@ The work, in order:
 4. Start the dev preview (_Dev preview_), then write the UI under `src/` (`data-app-ui`; filter controls in `data-app-filters`).
 5. Build and publish (_Build and publish_).
 
-For every later change: regenerate `src/metabase.ts` if the app's collection changed, then build and set the bundle. Metabase receives only the built bundle; the source stays in the project directory, which is the app's folder in the synced git repository when there is one (_Scaffold and install_).
+For every later change: regenerate `src/metabase.ts` if the app's collection changed, then build and set the bundle; in a synced repository, then export and commit the source as in _Move to another instance_. Metabase receives only the built bundle; the source stays in the project directory, which is the app's folder in the synced git repository when there is one (_Scaffold and install_).
 
 ## Before you start
 
@@ -39,7 +39,7 @@ mb data-app create --body '{"name":"sales-overview","display_name":"Sales overvi
 mb data-app scaffold <repo>/data_apps/sales-overview && cd <repo>/data_apps/sales-overview
 ```
 
-`scaffold [dir]` takes a **directory**, not the slug: it copies the Vite + React + TypeScript template into a new or empty directory (the current one when omitted) and needs no server. When the instance syncs with a git repository (`mb git-sync status`), the directory is `data_apps/<slug>/` in a local clone of that repository (ask the user for its path, or clone the remote), where an export writes the app's `data_app.yaml` and bundle: an export leaves the source alone and an import ignores it, so the repository keeps the source with the app. `scaffold` needs an empty directory, so scaffold before the app's first export; for an app already in the repository, scaffold into a new directory and move its files in beside `data_app.yaml` and `dist/`. Without a repository, use any new directory, and once remote sync is set up, move the project (without `node_modules/`, `dist/`, `.env.local` and a hand-written `data_app.yaml`) into `data_apps/<slug>/` before committing its source. Then install the SDK, then the rest:
+`scaffold [dir]` takes a **directory**, not the slug: it copies the Vite + React + TypeScript template into a new or empty directory (the current one when omitted) and needs no server. When the instance syncs with a git repository (`mb git-sync status`), the directory is `data_apps/<slug>/` in a local clone of that repository (ask the user for its path, or clone the remote), where an export writes the app's `data_app.yaml` and bundle: an export leaves the source alone and an import ignores it, so the repository keeps the source with the app. `scaffold` needs an empty directory, so scaffold before the app's first export; for an app already in the repository, scaffold into a new directory and copy its files, dotfiles included (`cp -R <dir>/. data_apps/<slug>/`), in beside `data_app.yaml` and `dist/`; check `.gitignore` is there before `npm install`. Without a repository, use any new directory, and once remote sync is set up, move the project (without `node_modules/`, `dist/`, `.env.local` and a hand-written `data_app.yaml`) into `data_apps/<slug>/` before committing its source. Then install the SDK, then the rest:
 
 ```bash
 npm install @metabase/embedding-sdk-react@<major>-beta   # <major>: 66 for a version tag v1.66.x (`mb auth status --json | jq -r .version.tag`)
