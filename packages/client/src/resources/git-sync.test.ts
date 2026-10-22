@@ -764,7 +764,7 @@ describe("git-sync resource wire requests", () => {
     expect(capture.calls).toEqual([
       PROPERTIES_READ,
       {
-        url: "https://mb.example.com/metabase/api/collection",
+        url: "https://mb.example.com/metabase/api/collection?include-library=true",
         method: "GET",
         headers: JSON_READ_HEADERS,
         body: null,

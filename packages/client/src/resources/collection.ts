@@ -32,6 +32,9 @@ const COLLECTION_LIST_QUERY = {
 
 const DEFAULT_LIST_FILTER = "all";
 
+// Metabase leaves the Library collections out of the list unless asked.
+const INCLUDE_LIBRARY = { "include-library": true } as const;
+
 export interface CollectionListParams {
   filter?: CollectionListFilter | undefined;
   namespace?: CollectionNamespace | undefined;
@@ -69,7 +72,10 @@ export async function listCollectionsAs<T>(
   schema: z.ZodType<T>,
   options: RequestOptions = {},
 ): Promise<T[]> {
-  return transport.requestParsed(z.array(schema), "/api/collection", { ...options });
+  return transport.requestParsed(z.array(schema), "/api/collection", {
+    ...options,
+    query: INCLUDE_LIBRARY,
+  });
 }
 
 export function collectionResource(transport: Transport) {
@@ -86,6 +92,7 @@ export function collectionResource(transport: Transport) {
       ...options,
       query: {
         ...COLLECTION_LIST_QUERY[params.filter ?? DEFAULT_LIST_FILTER],
+        ...INCLUDE_LIBRARY,
         namespace: params.namespace,
       },
     });

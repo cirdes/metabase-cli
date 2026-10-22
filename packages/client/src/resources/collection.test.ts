@@ -61,14 +61,14 @@ function clientOver(responses: Array<Response>) {
 }
 
 describe("collection resource wire requests", () => {
-  it("sends the unfiltered list request with no query parameters", async () => {
+  it("sends the unfiltered list request with only include-library", async () => {
     const { mb, capture } = clientOver([jsonResponse([COLLECTION])]);
 
     await mb.collection.list();
 
     expect(capture.calls).toEqual([
       {
-        url: "https://mb.example.com/metabase/api/collection",
+        url: "https://mb.example.com/metabase/api/collection?include-library=true",
         method: "GET",
         headers: JSON_READ_HEADERS,
         body: null,
@@ -83,7 +83,7 @@ describe("collection resource wire requests", () => {
 
     expect(capture.calls).toEqual([
       {
-        url: "https://mb.example.com/metabase/api/collection?archived=true",
+        url: "https://mb.example.com/metabase/api/collection?archived=true&include-library=true",
         method: "GET",
         headers: JSON_READ_HEADERS,
         body: null,
@@ -98,7 +98,7 @@ describe("collection resource wire requests", () => {
 
     expect(capture.calls).toEqual([
       {
-        url: "https://mb.example.com/metabase/api/collection?personal-only=true",
+        url: "https://mb.example.com/metabase/api/collection?personal-only=true&include-library=true",
         method: "GET",
         headers: JSON_READ_HEADERS,
         body: null,
