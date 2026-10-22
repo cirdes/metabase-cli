@@ -19,6 +19,7 @@ Notable changes to `@metabase/client`.
 - `SetupInput.user.email` is any string, so `setup.create` hands Metabase an address it accepts and a stricter email check refuses, and the server judges it.
 - `collection.itemPages` walks the `trash` alias on every server. No Metabase routes `/api/collection/trash/items`, so the walk reads the trash collection's id from `GET /api/collection/trash` first and pages its items by that id.
 - `search.query` and `collection.itemPages` explain an older server's 400 for a `models` value it does not take as the feature it lacks: `measure` in search through `measures`, `transform` through `transforms`, `exploration` through the new `explorations`, and among collection items `measure` through the new `collectionItemMeasures`.
+- `collection.itemPages` applies `pinned_state` on Metabase 59 and later, which read it as `pinned-state` and dropped the old spelling unread.
 
 ## 0.1.0
 
