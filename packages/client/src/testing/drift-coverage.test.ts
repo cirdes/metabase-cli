@@ -13,6 +13,7 @@ const UNSENT_INPUTS: Readonly<Record<string, string>> = {
   DashcardPatchInput:
     "dashboard.updateDashcard merges it into one of the dashcards dashboard.update sends, unchecked",
   TipTapNodeInput: "nested in the document inputs, unchecked",
+  TransformSourceTableEntryInput: "nested in the transform and Python test-run inputs, unchecked",
   TransformTestInput: "nested in the transform test inputs, unchecked",
 };
 
