@@ -17,6 +17,7 @@ Notable changes to `@metabase/client`.
 - `CurrentUser.email` is any string, so `user.current` reads an account whose address Metabase accepts and a stricter email check refuses, such as one with `!` or `/` in the local part or a digit or one-letter top-level domain.
 - `transform.create`, `transform.update` and `transformPython.testRun` send a Python source's tables keyed by alias to Metabase 58 and 59, which read no list: a transform entry as its reference less `alias`, or as the bare table id when it names its table by id alone, and a test-run entry as its table id. `TransformSourceTableEntryInput` also takes that id-only entry, `{ alias, table_id }` with `database_id`, `schema` and `table` absent or `null`, so a transform read from 59 updates back unchanged. `pythonTestRun` holds from 58 on a server licensed for Python transforms.
 - `SetupInput.user.email` is any string, so `setup.create` hands Metabase an address it accepts and a stricter email check refuses, and the server judges it.
+- `collection.itemPages` walks the `trash` alias on every server. No Metabase routes `/api/collection/trash/items`, so the walk reads the trash collection's id from `GET /api/collection/trash` first and pages its items by that id.
 
 ## 0.1.0
 

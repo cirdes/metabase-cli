@@ -32,6 +32,8 @@ const COLLECTION_LIST_QUERY = {
 
 const DEFAULT_LIST_FILTER = "all";
 
+const TRASH_ALIAS = "trash";
+
 export interface CollectionListParams {
   filter?: CollectionListFilter | undefined;
   namespace?: CollectionNamespace | undefined;
@@ -133,14 +135,19 @@ export function collectionResource(transport: Transport) {
 
   /**
    * Walk the items inside a collection one page at a time. This endpoint pages on the server, so
-   * the caller consumes pages rather than a single list and decides how far to pull.
+   * the caller consumes pages rather than a single list and decides how far to pull. The `trash`
+   * alias costs one more request, which reads the trash collection's id.
    */
   async function* itemPages(
     ref: CollectionId,
     params: CollectionItemListParams = {},
     options: CollectionItemPageOptions = {},
   ): AsyncIterable<Page<CollectionItem>> {
-    yield* paginatePages(transport, `/api/collection/${refPath(ref)}/items`, CollectionItem, {
+    const withSignal = options.signal !== undefined && { signal: options.signal };
+    // Every server answers the trash collection at `GET /api/collection/trash`, but none routes
+    // the alias through `/:id/items`, whose id is an integer or an entity id.
+    const itemsRef = ref === TRASH_ALIAS ? (await get(TRASH_ALIAS, { ...withSignal })).id : ref;
+    yield* paginatePages(transport, `/api/collection/${refPath(itemsRef)}/items`, CollectionItem, {
       query: {
         models: params.models,
         archived: params.archived,
@@ -149,7 +156,7 @@ export function collectionResource(transport: Transport) {
       ...(options.offset !== undefined && { offset: options.offset }),
       ...(options.max !== undefined && { max: options.max }),
       ...(options.pageSize !== undefined && { pageSize: options.pageSize }),
-      ...(options.signal !== undefined && { signal: options.signal }),
+      ...withSignal,
     });
   }
 
