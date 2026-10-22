@@ -7,7 +7,7 @@ requires: [remoteSync]
 
 # git-sync (representations ↔ instance)
 
-Metabase content (cards, dashboards, transforms, snippets, collections, …) can live in a git repo as YAML and round-trip in and out of a Metabase instance via the `git-sync` verbs. The instance is configured with a `remote-sync-*` settings block (URL, branch, token, type read-only/read-write); the CLI drives the sync tasks against `/api/ee/remote-sync/*`. Only collections flagged for sync serialize; everything else is local-only. Table and field metadata round-trips too, for Library-published tables in a flagged collection — see "Published table metadata" below.
+Metabase content (cards, dashboards, transforms, snippets, collections, …) can live in a git repo as YAML and round-trip in and out of a Metabase instance via the `git-sync` verbs. The instance is configured with a `remote-sync-*` settings block (URL, branch, token, type read-only/read-write); the CLI drives the sync tasks against `/api/ee/remote-sync/*`. Only collections flagged for sync serialize, plus each data app's collection, which syncs with its app under `data_apps/<slug>/` with no flag; everything else is local-only. Table and field metadata round-trips too, for Library-published tables in a flagged collection — see "Published table metadata" below.
 
 The repo and the instance are two ends of the same state; what "push my changes" means depends on where the changes were made. If they were made **in the instance** (CLI verbs against a read-write instance — cards edited, transforms created, tables published, metadata written), "push my changes" / "save this to the repo" / "open a PR with these changes" means driving the instance's export to a branch (`stash` or `create-branch` + `export`) and opening the PR from that branch — not reconstructing the changes as files. If the workflow is **repo-first** (content YAML edited in the repo, the instance imports it), plain `git` against the repo is the way — but only in the serialized layout already there: files in paths or formats the serializer doesn't own are invisible to Metabase and never apply on import.
 
@@ -184,7 +184,7 @@ Use `wait` after `import --no-wait` / `export --no-wait`. Use `cancel-task` if a
 
 ## Adding / removing a directory (collection) to sync
 
-The set of directories under sync is governed by which **collections** carry `is_remote_synced: true`. Every collection so flagged serializes to its own folder under `collections/` in the repo; everything outside that set is local-only. The CLI exposes per-collection toggles that route to the underlying bulk endpoint (`PUT /api/ee/remote-sync/settings`):
+The set of directories under sync is governed by which **collections** carry `is_remote_synced: true`. Every collection so flagged serializes to its own folder under `collections/` in the repo; so does each data app's collection, under `collections/data_apps/`, with no flag (a data app's collection can't be flagged). Everything else is local-only. The CLI exposes per-collection toggles that route to the underlying bulk endpoint (`PUT /api/ee/remote-sync/settings`):
 
 ```bash
 mb git-sync add-collection    <collection-id> --profile <n> --json

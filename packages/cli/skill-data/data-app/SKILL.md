@@ -39,7 +39,7 @@ mb data-app create --body '{"name":"sales-overview","display_name":"Sales overvi
 mb data-app scaffold <repo>/data_apps/sales-overview && cd <repo>/data_apps/sales-overview
 ```
 
-`scaffold [dir]` takes a **directory**, not the slug: it copies the Vite + React + TypeScript template into a new or empty directory (the current one when omitted) and needs no server. When the instance syncs with a git repository (`mb git-sync status`), the directory is `data_apps/<slug>/` in that repository's working tree, where an export writes the app's `data_app.yaml` and bundle: an export leaves the source alone and an import ignores it, so the repository keeps the source with the app. Without one, use any new directory. Then install the SDK, then the rest:
+`scaffold [dir]` takes a **directory**, not the slug: it copies the Vite + React + TypeScript template into a new or empty directory (the current one when omitted) and needs no server. When the instance syncs with a git repository (`mb git-sync status`), the directory is `data_apps/<slug>/` in that repository's working tree, where an export writes the app's `data_app.yaml` and bundle: an export leaves the source alone and an import ignores it, so the repository keeps the source with the app. `scaffold` needs an empty directory, so scaffold before the app's first export; for an app already in the repository, scaffold into a new directory and move its files in beside `data_app.yaml` and `dist/`. Without a repository, use any new directory. Then install the SDK, then the rest:
 
 ```bash
 npm install @metabase/embedding-sdk-react@<major>-beta   # <major>: 66 for a version tag v1.66.x (`mb auth status --json | jq -r .version.tag`)
@@ -63,7 +63,7 @@ The template is the bundle contract. Don't edit `package.json` by hand, and neve
   [ -n "$KEY" ] && [ "$KEY" != null ] && printf 'DATA_APP_MB_URL=%s\nDATA_APP_MB_API_KEY=%s\n' "$URL" "$KEY" > .env.local && echo written )
 ```
 
-Group `2` is Administrators. Never print `.env.local`. Delete the key at handoff (`mb api-key list`, then `mb api-key delete <id> --yes`); the next session writes a new one. A CORS error means the instance doesn't allow the preview's origin: ask the user to add `http://localhost:5174` under Admin → Embedding → Embedded analytics SDK → CORS.
+Group `2` is Administrators. Never print `.env.local`. Delete the key at handoff (`mb api-key list`, then `mb api-key delete <id> --yes`); the next session writes a new one. Metabase allows any localhost origin unless `MB_DISABLE_CORS_ON_LOCALHOST` is set, so a CORS error from the preview means it is: ask the user to unset it on this instance. Otherwise check `DATA_APP_MB_URL`.
 
 ### The diagnostics feed
 
@@ -110,12 +110,12 @@ curl -s "http://localhost:5174/__data-app/diagnostics?startEventId=0"
 ```bash
 npm run typecheck && npm run build
 mb data-app set-bundle sales-overview
-mb data-app set-enabled sales-overview true   # the first time
+mb data-app set-enabled sales-overview true   # the first time, once the user agrees
 ```
 
-`set-bundle` uploads `dist/index.js` (`--bundle` for another path) and replaces the app's bundle, live at once. A new app is disabled until `set-enabled` turns it on. Give the user `<metabase-url>/apps/<slug>`.
+`set-bundle` uploads `dist/index.js` (`--bundle` for another path) and replaces the app's bundle, live at once. A new app is a draft until `set-enabled` turns it on, which shows it to its viewers: ask the user first. A draft opens only in Data Studio → Data apps → the app → Overview; `/apps/<slug>` says "not found" until the app is on, for admins too. Give the user `<metabase-url>/apps/<slug>`.
 
-Admins open every app, enabled or not. Anyone else needs the app enabled (otherwise "not found") and one of their groups assigned to it (otherwise "You don't have access"), which only the user can do (Admin → Settings → Data apps → the app → Groups). A group reaches the app's collection and nothing more, so a viewer also needs data access to the tables its questions read.
+A viewer needs the app on and one of their groups assigned to it (otherwise "You don't have access"), which only the user can do (Data Studio → Data apps → the app → Permissions). A group reaches the app's collection and nothing more, so a viewer also needs data access to the tables its questions read.
 
 ## Pitfalls
 
@@ -133,6 +133,6 @@ Admins open every app, enabled or not. Anyone else needs the app enabled (otherw
 ## Change, move, delete
 
 - **Turn off:** `mb data-app set-enabled <slug> false`. **Rename:** `mb data-app update <slug> --body '{"display_name":"…"}'` (also `description`, `allowed_hosts`).
-- **Outdated:** an app Metabase lists as _Outdated_ targets an older data-app contract: it won't open for anyone, and only admins see it listed, until it's migrated. Tell the user; don't change its code ad hoc.
-- **Move to another instance:** the app, its collection and what the collection holds are git-synced content. `mb git-sync export` (`git-sync`) writes `data_apps/<slug>/` with the bundle, and the collection under `collections/data_apps/`; importing the repository on the other instance recreates them with the same entity IDs, so the same `src/metabase.ts` and bundle work there. Once the app is done, commit its source in `data_apps/<slug>/` on the branch you exported to, after the export: pull first, never edit the files the export wrote, and keep `node_modules/`, `dist/` and `.env.local` out (the template's `.gitignore` does). On a read-only instance the app's collection can't be edited: change it where it was built and export again.
-- **Delete:** confirm with the user, then `mb data-app delete <slug> --yes` — it removes the app, its bundle, its collection and the questions and actions in it. The project directory stays.
+- **Outdated:** an app Data Studio lists as _Outdated_ targets an older data-app contract: it won't open for anyone, and only admins see it, until it's migrated. Tell the user; don't change its code ad hoc.
+- **Move to another instance:** the app, its collection and what the collection holds are git-synced content. `mb git-sync export` (`git-sync`) writes `data_apps/<slug>/` with the bundle, and the collection under `collections/data_apps/`; importing the repository on the other instance recreates them with the same entity IDs, so the same `src/metabase.ts` works there. The import doesn't check that the questions' tables are published on that instance, so the Library content they read goes in the same export; a data action needs its database's toggle on there too. Once the app is done, commit its source in `data_apps/<slug>/` on the branch you exported to, after the export: pull first, and commit only the source. The export writes `data_app.yaml` and `dist/index.js`, the bundle you uploaded; never edit or commit those two yourself, and when `git status` shows `dist/index.js` changed, set the bundle and export again instead. The template's `.gitignore` keeps `node_modules/` and `.env.local` out. On a read-only instance the app's collection can't be edited: change it where it was built and export again.
+- **Delete:** confirm with the user, then `mb data-app delete <slug> --yes` — it removes the app, its bundle, its collection and the questions and actions in it. The project directory stays: in a synced repository, the next export removes the app's `data_app.yaml`, bundle and collection files, and its source folder goes in the same commit.
