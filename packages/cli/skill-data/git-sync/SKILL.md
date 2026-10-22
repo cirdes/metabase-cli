@@ -197,7 +197,7 @@ Both return `{ success: true }`, plus a `task_id` when the toggle started a foll
 
 **Cascade.** A toggle on a parent cascades to every descendant by `location` prefix — `add-collection 4` flips `4` plus every collection nested under it. `remove-collection 4` is the symmetric inverse. There is no per-leaf-only mode.
 
-**Custom collections.** Outside the Library, transforms, snippets, data actions and data apps, a flag answers 400 unless the admin setting `remote-sync-custom-collections-enabled` is on.
+**Custom collections.** Outside the Library, transforms, snippets and data actions, a flag answers 400 unless the admin setting `remote-sync-custom-collections-enabled` is on (a data app's collection can't be flagged at all).
 
 **Mode prerequisite.** The server rejects toggles while `remote-sync-type` is `:read-only` (the install default; `mb git-sync status --json` reports it as `sync_type`). If `mb git-sync add-collection 12` returns `Metabase returned 400 … Cannot change synced collections when remote-sync-type is read-only.`, switch first with:
 
@@ -258,7 +258,7 @@ Flagging the collection records it for the next export, which serializes its cur
 - Don't turn instance-side changes into hand-written repo files: export them and PR the exported branch (see the top of this skill). Files pushed behind Metabase's back race its own sync tasks.
 - Don't conclude from an empty `dirty` list that a change type isn't tracked. Dirty-tracking only records changes to _eligible_ objects; the usual cause is scope (the collection isn't flagged — see "Published table metadata"), not capability. Check `synced_collections` in `status` before concluding.
 - Don't run `git-sync import --force` or `git-sync export --force` without explicit user confirmation. Both are lossy — `--force` import discards instance-side work, `--force` export overwrites the remote branch.
-- Don't drive `git-sync` against a Metabase instance that doesn't have remote-sync configured — every verb returns an error pointing at the missing `remote-sync-*` settings. To check: `mb git-sync status --profile <n> --json` reports `remote_configured: false` when no remote is configured.
+- Don't drive `git-sync` against a Metabase instance that doesn't have remote-sync configured — import, export, has-remote-changes and export-preflight answer `Remote sync is not configured.` To check: `mb git-sync status --profile <n> --json` succeeds and reports `remote_configured: false`.
 - Don't author content directly via `card create` / `transform create` and then assume `git-sync export` will commit it cleanly — the instance and repo can drift if you mix direct API writes with sync-tracked changes. If you do, follow direct writes immediately with `git-sync export -m "..."` to keep them in step.
 - Don't move a dashboard or question into a synced collection before what it depends on, and don't retry a `Uses content that is not remote synced.` refusal unchanged. Move the listed dependencies first, move the whole containing collection, or build the content in the synced collection to begin with (see "Moving content into or out of a synced collection").
 - Don't omit `-m` on `export` if the user wants a meaningful commit message — the default server-generated message is generic.

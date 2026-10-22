@@ -164,7 +164,7 @@ What `--help` doesn't say: footguns and non-obvious behaviors.
 
 ## Specialized skills (load on demand)
 
-This file is enough for any single-command task. For anything deeper, load the relevant skill **proactively** — don't wing an MBQL body, a transform body, or the git-sync workflow from this overview. Load via `mb skills get <name>`.
+This file is enough for any single-command task. For anything deeper, load the relevant skill (`mb skills get <name>`) **proactively** — don't wing it from this overview.
 
 - **`mbql`** — authoring/fixing any MBQL query body (`mb query`, card `dataset_query`, transform `source.query`, measure/segment `definition`); reading `--dry-run` errors. The query-body reference.
 - **`native-sql`** — authoring a native SQL `dataset_query` with parameters: template tags, field filters vs. raw variables, snippets, card references, and wiring a tag to a dashboard filter. The SQL fallback when MBQL can't express it (`mbql` first).
@@ -184,6 +184,9 @@ This file is enough for any single-command task. For anything deeper, load the r
   <!-- /requires -->
   <!-- requires: remoteSync -->
 - **`git-sync`** — round-tripping content to/from a git remote.
+  <!-- /requires -->
+  <!-- requires: dataApps -->
+- **`data-app`** — data apps: create, preview, publish (start here).
 <!-- /requires -->
 - **`data-workflow`** — the guided, end-to-end data workflow: investigate raw data, build clean analysis-ready tables, define reusable segments/measures/metrics, answer questions, build dashboards. **Start here when the user states a goal rather than a single verb** — "make sense of my data", "build a data model", "be my data analyst". It detects where the data is and routes to the right stage.
 
