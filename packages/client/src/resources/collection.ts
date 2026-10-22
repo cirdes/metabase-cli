@@ -15,6 +15,8 @@ import {
 import type { RequestOptions, Transport } from "../http/transport";
 import type { ListResult } from "../list";
 import { type Page, type PaginateOptions, paginatePages } from "../paginate";
+import type { FeatureName } from "../version/features";
+import { explainer, type ParameterRequirement } from "../version/refusal";
 
 // `GET /api/collection` and `GET /api/collection/tree` both answer a bare array rather than a
 // `{ data, total }` envelope, so the count a caller reads off `ListResult` is the array's own
@@ -53,6 +55,28 @@ export interface CollectionTreeParams {
 // The walk's own settings, minus the query the method builds from `CollectionItemListParams`.
 export type CollectionItemPageOptions = Omit<PaginateOptions, "query">;
 
+const MODELS_FIELDS = ["models"];
+
+// A server older than one of these filter values answers 400 naming `models`.
+const ITEM_MODEL_FEATURES: Partial<Record<CollectionItemFilterModel, FeatureName>> = {
+  transform: "transforms",
+  measure: "collectionItemMeasures",
+  exploration: "explorations",
+};
+
+function itemModelFeatures(
+  _ref: CollectionId,
+  params: CollectionItemListParams = {},
+): ParameterRequirement[] {
+  if (params.models === undefined) {
+    return [];
+  }
+  return params.models.flatMap((model) => {
+    const feature = ITEM_MODEL_FEATURES[model];
+    return feature === undefined ? [] : [{ feature, fields: MODELS_FIELDS }];
+  });
+}
+
 // A collection is reachable by numeric id, by 21-character entity id, and by the aliases `root`
 // and `trash`, so every ref reaches the path through `encodeURIComponent`.
 function refPath(ref: CollectionId): string {
@@ -75,6 +99,8 @@ export async function listCollectionsAs<T>(
 }
 
 export function collectionResource(transport: Transport) {
+  const { explainWalk } = explainer(transport, "collection");
+
   /**
    * List collections. `filter` picks a server-side preset: everything, archived, or personal. Every
    * preset includes the Library collections that match it. `namespace` lists that namespace's
@@ -136,7 +162,9 @@ export function collectionResource(transport: Transport) {
   /**
    * Walk the items inside a collection one page at a time. This endpoint pages on the server, so
    * the caller consumes pages rather than a single list and decides how far to pull. The `trash`
-   * alias costs one more request, which reads the trash collection's id.
+   * alias costs one more request, which reads the trash collection's id. A `models` filter takes
+   * `transform` only with `transforms`, `measure` only with `collectionItemMeasures`, and
+   * `exploration` only with `explorations`.
    */
   async function* itemPages(
     ref: CollectionId,
@@ -172,5 +200,13 @@ export function collectionResource(transport: Transport) {
     return { data, total: null };
   }
 
-  return { list, get, create, update, archive, itemPages, tree };
+  return {
+    list,
+    get,
+    create,
+    update,
+    archive,
+    itemPages: explainWalk("itemPages", itemPages, itemModelFeatures),
+    tree,
+  };
 }

@@ -22,6 +22,8 @@ export const FEATURE_RULES = {
   transforms: { since: 59 },
   transformJobActivation: { since: 61 },
   measures: { since: 59 },
+  collectionItemMeasures: { since: 61 },
+  explorations: { since: 65 },
   tableFromDefinition: { since: 64 },
   library: { since: 59, tokenFeature: "library" },
   libraryDashboards: { since: 65 },
