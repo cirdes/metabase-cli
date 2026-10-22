@@ -21,7 +21,7 @@ For every later change: regenerate `src/metabase.ts` if the app's collection cha
 
 ## Before you start
 
-- Use an **admin** profile — only admins create apps and write the app's collection. `mb auth status --json | jq .user.isAdmin` prints `true` for one; otherwise ask the user for an admin profile (`mb auth list`).
+- Use an **admin** profile — only admins create apps and write the app's collection. `mb auth status --profile <name> --json | jq .user.isAdmin` prints `true` for one, and every command below takes that `--profile`; otherwise ask the user for an admin profile (`mb auth list`).
 - Run `mb data-app list`. A failure means the instance has no data apps: stop and tell the user.
 - Settle the **slug**, the `/apps/<slug>` URL: lowercase letters, digits and single dashes (`sales-overview`), at most 100 characters. If the app's purpose is unclear, ask "what's this app for?" and propose one.
 
@@ -58,8 +58,8 @@ The template is the bundle contract. Don't edit `package.json` by hand, and neve
 
 ```bash
 ( umask 077
-  URL=$(mb auth status --json | jq -r .url)
-  KEY=$(mb api-key create --body '{"name":"data-app <slug> dev","group_id":2}' --json | jq -r .unmasked_key)
+  URL=$(mb auth status --profile <name> --json | jq -r .url)
+  KEY=$(mb api-key create --profile <name> --body '{"name":"data-app <slug> dev","group_id":2}' --json | jq -r .unmasked_key)
   [ -n "$KEY" ] && [ "$KEY" != null ] && printf 'DATA_APP_MB_URL=%s\nDATA_APP_MB_API_KEY=%s\n' "$URL" "$KEY" > .env.local && echo written )
 ```
 
