@@ -45,11 +45,13 @@ const TransformCheckpointStrategy = z
   })
   .loose();
 
+// `schema` may be absent so a reference a server keying the tables by alias stored without one can
+// be written back; a server that requires it answers its own 400.
 const TransformSourceTableRefInput = z
   .object({
     alias: z.string(),
     database_id: z.number().int(),
-    schema: z.string().nullable(),
+    schema: z.string().nullable().optional(),
     table: z.string().optional(),
     table_id: z.number().int().nullable().optional(),
   })
