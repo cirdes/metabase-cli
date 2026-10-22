@@ -184,18 +184,20 @@ Use `wait` after `import --no-wait` / `export --no-wait`. Use `cancel-task` if a
 
 ## Adding / removing a directory (collection) to sync
 
-The set of directories under sync is governed by which **collections** carry `is_remote_synced: true`. Every collection so flagged serializes to its own folder under `collections/` in the repo; so do the unflagged ones above (a data app's collection can't be flagged). Everything else is local-only. The CLI exposes per-collection toggles that route to the underlying bulk endpoint (`PUT /api/ee/remote-sync/settings`):
+The set of directories under sync is governed by which **collections** carry `is_remote_synced: true`. Every collection so flagged serializes to its own folder under `collections/` in the repo; so do the unflagged ones above (a data app's collection can't be flagged). Everything else is local-only. Toggle one collection at a time:
 
 ```bash
 mb git-sync add-collection    <collection-id> --profile <n> --json
 mb git-sync remove-collection <collection-id> --profile <n> --json
 ```
 
-`<collection-id>` is a **positive integer** (the bulk endpoint's schema is `pos-int? → boolean`; nano-id / `root` / `trash` refs are not supported). Get the id from `collection list` (see `core`).
+`<collection-id>` is a **positive integer** (no nano-id, `root` or `trash`). Get the id from `collection list` (see `core`).
 
-Both verbs return `{ success: true }`, plus a `task_id` only when the toggle started a follow-up task (e.g. a finalization import after switching to read-only).
+Both return `{ success: true }`, plus a `task_id` when the toggle started a follow-up task.
 
 **Cascade.** A toggle on a parent cascades to every descendant by `location` prefix — `add-collection 4` flips `4` plus every collection nested under it. `remove-collection 4` is the symmetric inverse. There is no per-leaf-only mode.
+
+**Custom collections.** Outside the Library, transforms, snippets, data actions and data apps, a flag answers 400 unless the admin setting `remote-sync-custom-collections-enabled` is on.
 
 **Mode prerequisite.** The server rejects toggles while `remote-sync-type` is `:read-only` (the install default; `mb git-sync status --json` reports it as `sync_type`). If `mb git-sync add-collection 12` returns `Metabase returned 400 … Cannot change synced collections when remote-sync-type is read-only.`, switch first with:
 
