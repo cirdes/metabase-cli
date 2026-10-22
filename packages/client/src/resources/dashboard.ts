@@ -5,7 +5,8 @@ import {
   DashboardCopy,
   type DashboardCopyInput,
   type DashboardCreateInput,
-  DashboardDetail,
+  type DashboardDetail,
+  dashboardDetailSchema,
   type DashboardListFilter,
   type DashboardParameterConstraints,
   type DashboardTab,
@@ -90,7 +91,7 @@ export function dashboardResource(transport: Transport) {
 
   /** Get one dashboard by id, with its dashcards, tabs and parameters. */
   async function get(id: number, options: RequestOptions = {}): Promise<DashboardDetail> {
-    return transport.requestParsed(DashboardDetail, `/api/dashboard/${id}`, { ...options });
+    return transport.requestParsed(dashboardDetailSchema, `/api/dashboard/${id}`, { ...options });
   }
 
   /**
@@ -120,7 +121,7 @@ export function dashboardResource(transport: Transport) {
     options: RequestOptions = {},
   ): Promise<DashboardDetail> {
     const body = await withCurrentTabs(id, params, options);
-    return transport.requestParsed(DashboardDetail, `/api/dashboard/${id}`, {
+    return transport.requestParsed(dashboardDetailSchema, `/api/dashboard/${id}`, {
       ...options,
       method: "PUT",
       body,

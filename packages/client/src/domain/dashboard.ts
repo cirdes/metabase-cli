@@ -137,6 +137,27 @@ export const DashboardDetail = Dashboard.extend({
 });
 export type DashboardDetail = z.infer<typeof DashboardDetail>;
 
+// The server hydrates a query duration and download permissions onto a dashcard's card even when it
+// has none, so a dashcard bound to no card answers a stub such as
+// `{ query_average_duration: null, download_perms: "none" }` rather than `null`.
+const NoCardStub = z
+  .object({ id: z.never().optional(), name: z.never().optional() })
+  .loose()
+  .transform(() => null);
+
+const DashcardDetailWire = DashcardDetail.extend({
+  card: z.union([Card, UnreadableCard, NoCardStub]).nullable(),
+});
+
+/**
+ * The dashboard `GET` and `PUT /api/dashboard/{id}` answer, read as `DashboardDetail`: the stub card
+ * of a dashcard bound to no card reads as `null`.
+ */
+export const dashboardDetailSchema: z.ZodType<DashboardDetail> = DashboardDetail.extend({
+  dashcards: z.array(DashcardDetailWire),
+});
+
+
 export const DashboardCompact = Dashboard.pick({
   id: true,
   name: true,
