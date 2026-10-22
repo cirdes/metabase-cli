@@ -2,7 +2,7 @@
 
 Notable changes to `@metabase/client`.
 
-## Unreleased
+## 0.1.1
 
 - `DashboardCreateInput` holds only the fields `POST /api/dashboard` reads, and is strict, and `dashboard.create` parses its body against it. A layout or any other key passed to `dashboard.create` is refused before the request rather than dropped unread by the server; send a layout as a `DashboardLayoutInput` through `dashboard.update`. A blank `name` is refused too, as the server does.
 - `DashboardLayoutInput` and `DatabaseUpdateInput` are on the barrel.
