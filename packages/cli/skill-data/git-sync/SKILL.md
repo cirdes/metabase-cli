@@ -7,7 +7,7 @@ requires: [remoteSync]
 
 # git-sync (representations ↔ instance)
 
-Metabase content (cards, dashboards, transforms, snippets, collections, …) can live in a git repo as YAML and round-trip in and out of a Metabase instance via the `git-sync` verbs. The instance is configured with a `remote-sync-*` settings block (URL, branch, token, type read-only/read-write); the CLI drives the sync tasks against `/api/ee/remote-sync/*`. Only flagged collections serialize, plus, unflagged: each data app's collection (with its app, `data_apps/<slug>/`), transforms (`remote-sync-transforms`), and snippets and data actions once the Library is synced. Everything else is local-only. Table and field metadata round-trips too, for Library-published tables in a flagged collection — see "Published table metadata" below.
+Metabase content (cards, dashboards, transforms, snippets, collections, …) can live in a git repo as YAML and round-trip in and out of a Metabase instance via the `git-sync` verbs. The instance is configured with a `remote-sync-*` settings block (URL, branch, token, type read-only/read-write); the CLI drives the sync tasks against `/api/ee/remote-sync/*`. Only flagged collections serialize, plus, unflagged: each data app's collection (with its app, `data_apps/<slug>/`), transforms (`remote-sync-transforms`), and snippets, data actions and glossary once the Library is synced. Everything else is local-only. Table and field metadata round-trips too, for Library-published tables in a flagged collection — see "Published table metadata" below.
 
 The repo and the instance are two ends of the same state; what "push my changes" means depends on where the changes were made. If they were made **in the instance** (CLI verbs against a read-write instance — cards edited, transforms created, tables published, metadata written), "push my changes" / "save this to the repo" / "open a PR with these changes" means driving the instance's export to a branch (`stash` or `create-branch` + `export`) and opening the PR from that branch — not reconstructing the changes as files. If the workflow is **repo-first** (content YAML edited in the repo, the instance imports it), plain `git` against the repo is the way — but only in the serialized layout already there: files in paths or formats the serializer doesn't own are invisible to Metabase and never apply on import.
 
@@ -168,7 +168,7 @@ Skip the prompt only if the user's instructions already specified the branch (e.
 ```bash
 mb git-sync branches --profile <n> --json                 # list remote branches
 mb git-sync create-branch <name> --profile <n>            # create + switch sync to it
-mb git-sync stash --profile <n>                           # export current state to a NEW branch
+mb git-sync stash --new-branch <name> --profile <n>       # export current state to a NEW branch
 ```
 
 `stash` is the safe move when the instance has team work you don't want to lose, but you need to pivot to a different branch (`import` would discard, `export --force` would overwrite). It exports current state to a fresh branch first.
@@ -237,7 +237,7 @@ To plan the order before the first move, `mb dependency graph dashboard <id> --j
 
 ## Published table metadata (Library) and sync scope
 
-Table and field metadata — table/field descriptions, semantic types (`type/PK`, `type/FK`), FK targets, plus segments and measures on the table — serializes for **Library-published tables only**, under `databases/<db>/schemas/<schema>/tables/<table>/…` in the repo. Eligibility is two-gated: the table must be published (`mb library publish`), **and** the Library root must be flagged (flagging only Data leaves out Metrics, Dashboards, snippets and data actions). An ordinary warehouse table, or a transform's target table that isn't published, never serializes — a transform's YAML carries only the transform definition (query, target, description), not the output table's field metadata.
+Table and field metadata — table/field descriptions, semantic types (`type/PK`, `type/FK`), FK targets, plus segments and measures on the table — serializes for **Library-published tables only**, under `databases/<db>/schemas/<schema>/tables/<table>/…` in the repo. Eligibility is two-gated: the table must be published (`mb library publish`), **and** Library Data must be synced; flag the Library root, as Data alone leaves out Metrics, Dashboards, snippets, data actions and glossary. An ordinary warehouse table, or a transform's target table that isn't published, never serializes — a transform's YAML carries only the transform definition (query, target, description), not the output table's field metadata.
 
 The classic trap: publish tables, write field metadata, then `git-sync dirty` comes back empty and nothing lands in the repo. That does not mean git-sync can't carry table metadata — it means the Library collection isn't in the sync scope, so nothing was eligible for dirty-tracking when the writes happened. Check the scope (`synced_collections` in `status`), then:
 

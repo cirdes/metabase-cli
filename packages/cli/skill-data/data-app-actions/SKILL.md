@@ -13,6 +13,8 @@ An **action** is a saved, parameterized SQL write — `INSERT`, `UPDATE` or `DEL
 2. Regenerate `src/metabase.ts` (`data-app-data`).
 3. Pass `actions.<name>` from it to `useAction`.
 
+An action in the app's collection can't be archived: to drop one, move it to a data actions collection (`mb data-action update <id> --body '{"collection_id":<id>}'`), then archive it.
+
 Each action there lists its parameters: the parameter slug (the key `execute` takes), `displayName` (a label, never a key), `jsType` (`string`, `number`, `Date`, `boolean` or `unknown`) and `required`. Never fake a call to an action `src/metabase.ts` doesn't list.
 
 ## The hook
