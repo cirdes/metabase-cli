@@ -74,7 +74,7 @@ export function AppError({ message }: SdkErrorComponentProps) {
 | `StaticQuestion`      | A chart, KPI or table without drill-through — the default.                              |
 | `InteractiveQuestion` | One meant to be explored: drill-through, chart switching; pass `isSaveEnabled={false}`. |
 
-Both take a question in the app's collection. Dashboards and the authoring components (`CreateQuestion`, `MetabotQuestion`, `CollectionBrowser`, `CreateDashboardModal`, saving from the editor) don't work in an app: its collection can't hold a dashboard, and an app's requests can only read and run its own questions and actions.
+Both take a question in the app's collection. Dashboards and the authoring components (`CreateQuestion`, `CreateDashboardModal`, saving from the editor) don't work in an app: its collection can't hold a dashboard, and an app can't save content.
 
 ## A Metabase chart or your own
 
