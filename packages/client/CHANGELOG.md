@@ -12,6 +12,7 @@ Notable changes to `@metabase/client`.
 - `dashboard.get` and `dashboard.update` read a dashboard holding a text, heading or other dashcard bound to no card. The server answers a stub `card` such as `{ query_average_duration: null, download_perms: "none" }` for such a dashcard, which 0.1.0 refused; it reads as `null`, and `dashboardDetailSchema` on the dashboard subpath is the reader.
 - A transform's Python `source-tables` entry reads without `database_id` or `schema`, as the server stores an entry whose table or database is gone. `TransformSourceTableEntry` is the stored entry, and `TransformSourceTableEntryInput`, on the barrel, is the entry the create, update and Python test-run bodies take, as strict as before.
 - Every transform read on Metabase 59 accepts a Python transform, whose `source-tables` that server keys by alias. `transformRowSchema` and `transformDetailSchema` read it as the list later servers answer, taking each alias from its key; an entry naming its table by id alone reads `database_id`, `schema` and `table` as `null`. `transformSourceTablesAsList` is the feature.
+- The dependency readers accept the action nodes Metabase 65 adds: `DependencyType` and `DependencyUsageType` take `"action"`, and `DependencyEntityData.type` takes an action's `"implicit"` or `"query"`. `dependency.graph`, `dependency.dependents` and `dependency.broken` explain an older server's refusal of an action as the entity through `actionDependencyGraph`.
 
 ## 0.1.0
 

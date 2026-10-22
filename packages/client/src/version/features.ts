@@ -54,6 +54,7 @@ export const FEATURE_RULES = {
   dependencyItemListings: { since: 59, tokenFeature: "dependencies" },
   dependencyAsyncBackfill: { since: 60, tokenFeature: "dependencies" },
   measureDependencyGraph: { since: 59 },
+  actionDependencyGraph: { since: 65 },
   tableListAccessFilters: { since: 59 },
   tableListTransformTargets: { since: 60 },
   tableListPublishedFilter: { since: 63 },
