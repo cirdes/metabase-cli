@@ -1258,7 +1258,7 @@ Body fields: `name` (required, the slug: lowercase letters, digits and single da
 
 ### `mb data-app update <slug>`
 
-Patch a data app; the body carries only the fields to change (`display_name`, `description`, `allowed_hosts`, `enabled`, `bundle_path`, `version`). A disabled app is served only to admins.
+Patch a data app; the body carries only the fields to change (`display_name`, `description`, `allowed_hosts`, `enabled`, `bundle_path`, `version`). A disabled app opens only in Data Studio (Data apps → the app → Overview), and /apps/<slug> says not found, admins included.
 
 ```sh
 mb data-app update sales-overview --body '{"enabled":true}'
@@ -1288,7 +1288,7 @@ mb data-app set-bundle sales-overview --bundle build/index.js
 
 ### `mb data-app set-enabled <slug> <true|false>`
 
-Enable or disable the app. A disabled app is served only to admins.
+Enable or disable the app. A disabled app opens only in Data Studio (Data apps → the app → Overview), and /apps/<slug> says not found, admins included.
 
 ```sh
 mb data-app set-enabled sales-overview true
