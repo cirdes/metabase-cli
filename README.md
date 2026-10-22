@@ -1254,7 +1254,7 @@ mb data-app create --body '{"name":"sales-overview","display_name":"Sales overvi
 mb data-app create --file app.json --json
 ```
 
-Body fields: `name` (required, the slug: lowercase letters, digits and single dashes, at most 100 characters), `display_name` (the slug by default), `description`, `allowed_hosts`, `enabled` (false by default), `bundle_path`, `version`. The app starts with an empty bundle, which `mb data-app set-bundle` replaces. The answer's `resource_collection_id` is the app's collection.
+Body fields: `name` (required, the slug: lowercase letters, digits and single dashes, at most 100 characters), `display_name` (the slug by default), `description`, `allowed_hosts`, `enabled` (true by default), `bundle_path`, `version`. The app starts with an empty bundle, which `mb data-app set-bundle` replaces. The answer's `resource_collection_id` is the app's collection.
 
 ### `mb data-app update <slug>`
 
@@ -1275,7 +1275,7 @@ mb data-app typed-schema sales-overview > src/metabase.ts
 
 ### `mb data-app set-bundle <slug>`
 
-Replace the app's bundle with a built one (`dist/index.js` by default). Enable a new app with `mb data-app set-enabled <slug> true`.
+Replace the app's bundle with a built one (`dist/index.js` by default), served at once.
 
 ```sh
 mb data-app set-bundle sales-overview
@@ -1288,7 +1288,7 @@ mb data-app set-bundle sales-overview --bundle build/index.js
 
 ### `mb data-app set-enabled <slug> <true|false>`
 
-Enable or disable the app. A disabled app opens only in Data Studio (Data apps → the app → Overview), and /apps/<slug> says not found, admins included.
+Enable or disable the app; a new app is enabled. A disabled app opens only in Data Studio (Data apps → the app → Overview), and /apps/<slug> says not found, admins included.
 
 ```sh
 mb data-app set-enabled sales-overview true

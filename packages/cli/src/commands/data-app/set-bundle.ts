@@ -9,7 +9,7 @@ import { parseSlug, slugArg } from "./slug";
 export default defineMetabaseCommand({
   meta: { name: "set-bundle", description: "Replace a data app's bundle with a built one" },
   details:
-    "Reads the built bundle (`npm run build` writes `dist/index.js`) and makes it the bundle Metabase serves at /apps/<slug>, at once. A new app is disabled: a disabled app opens only in Data Studio (Data apps → the app → Overview), and /apps/<slug> says not found, admins included. Enable it with `mb data-app set-enabled <slug> true`.",
+    "Reads the built bundle (`npm run build` writes `dist/index.js`) and makes it the bundle Metabase serves at /apps/<slug>, at once. A new app is enabled; viewers reach it once a group is assigned. A disabled app opens only in Data Studio (Data apps → the app → Overview).",
   skills: [{ skill: "data-app", purpose: "build and publish an app" }],
   requires: ["dataApp.replaceBundle"],
   args: {
