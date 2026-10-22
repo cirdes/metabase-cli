@@ -56,10 +56,13 @@ export const TransformSourceTableEntryInput = z
   .loose();
 export type TransformSourceTableEntryInput = z.infer<typeof TransformSourceTableEntryInput>;
 
-// The server requires only `alias`, and keeps an entry whose table or database is gone without the rest.
+// The server requires only `alias`, and keeps an entry whose table or database is gone without the
+// rest. `database_id`, `schema` and `table` are null where a server keying the tables by alias names
+// a table by its id alone, and so cannot say.
 export const TransformSourceTableEntry = TransformSourceTableEntryInput.extend({
   database_id: z.number().int().nullable().optional(),
   schema: z.string().nullable().optional(),
+  table: z.string().nullable().optional(),
 });
 export type TransformSourceTableEntry = z.infer<typeof TransformSourceTableEntry>;
 
@@ -82,6 +85,52 @@ const TransformPythonSource = z
   .loose();
 
 const TransformSource = z.discriminatedUnion("type", [TransformQuerySource, TransformPythonSource]);
+type TransformSource = z.infer<typeof TransformSource>;
+
+// A server without the list keys a Python source's tables by alias, each value a table id or a
+// reference by name. Its entry takes the alias from the key, as the server's own migration to the
+// list does; that migration reads the database, schema and name of an id off the table row.
+const TransformSourceTableRefWireV59 = z
+  .object({
+    database_id: z.number().int(),
+    schema: z.string().nullable().optional(),
+    table: z.string(),
+    table_id: z.number().int().nullable().optional(),
+  })
+  .loose();
+
+const TransformSourceTableWireV59 = z.union([z.number().int(), TransformSourceTableRefWireV59]);
+
+const TransformSourceTablesWireV59 = z.record(z.string(), TransformSourceTableWireV59);
+
+function toSourceTableEntry(
+  alias: string,
+  wire: z.infer<typeof TransformSourceTableWireV59>,
+): TransformSourceTableEntry {
+  if (typeof wire === "number") {
+    return { alias, table_id: wire, database_id: null, schema: null, table: null };
+  }
+  return { ...wire, alias };
+}
+
+function fromAliasMap(
+  wire: z.infer<typeof TransformSourceTablesWireV59>,
+): TransformSourceTableEntry[] {
+  return Object.entries(wire).map(([alias, value]) => toSourceTableEntry(alias, value));
+}
+
+const TransformPythonSourceWireV59 = TransformPythonSource.extend({
+  "source-tables": TransformSourceTablesWireV59.transform(fromAliasMap),
+});
+
+const TransformSourceWireV59 = z.discriminatedUnion("type", [
+  TransformQuerySource,
+  TransformPythonSourceWireV59,
+]);
+
+function transformSourceSchema(features: Features): z.ZodType<TransformSource> {
+  return features.transformSourceTablesAsList ? TransformSource : TransformSourceWireV59;
+}
 
 const TransformPythonSourceInput = TransformPythonSource.extend({
   "source-tables": z.array(TransformSourceTableEntryInput),
@@ -300,14 +349,18 @@ function withoutLink(row: z.infer<typeof TransformBase>): Transform {
 
 /** The shape `GET /api/transform/{id}` answers on a server with `features`, read as `Transform`. */
 export function transformDetailSchema(features: Features): z.ZodType<Transform> {
+  const source = transformSourceSchema(features);
   return features.transformTargetTableId
-    ? Transform
-    : TransformWireV59Detail.transform(fromHydratedTable);
+    ? Transform.extend({ source })
+    : TransformWireV59Detail.extend({ source }).transform(fromHydratedTable);
 }
 
 /** The shape every other transform endpoint answers on a server with `features`, read as `Transform`. */
 export function transformRowSchema(features: Features): z.ZodType<Transform> {
-  return features.transformTargetTableId ? Transform : TransformBase.transform(withoutLink);
+  const source = transformSourceSchema(features);
+  return features.transformTargetTableId
+    ? Transform.extend({ source })
+    : TransformBase.extend({ source }).transform(withoutLink);
 }
 
 export const TransformCompact = Transform.pick({

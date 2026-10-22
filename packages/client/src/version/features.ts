@@ -34,6 +34,7 @@ export const FEATURE_RULES = {
   contentTranslation: { since: 58, tokenFeature: "content_translation" },
   contentVerification: { since: 58, tokenFeature: "content_verification" },
   transformTargetTableId: { since: 61 },
+  transformSourceTablesAsList: { since: 60 },
   transformTargetTableLinkedOnCreate: { since: 61, until: 61 },
   transformJobRunIdIsNumeric: { since: 64 },
   transformCheckpointReset: { since: 60 },
