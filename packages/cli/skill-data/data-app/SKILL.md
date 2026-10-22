@@ -17,7 +17,7 @@ The work, in order:
 4. Start the dev preview (_Dev preview_), then write the UI under `src/` (`data-app-ui`; filter controls in `data-app-filters`).
 5. Build and publish (_Build and publish_).
 
-For every later change: regenerate `src/metabase.ts` if the app's collection changed, then build and set the bundle. Metabase receives only the built bundle; the source stays in the project directory, under git if the user keeps one.
+For every later change: regenerate `src/metabase.ts` if the app's collection changed, then build and set the bundle. Metabase receives only the built bundle; the source stays in the project directory, which is the app's folder in the synced git repository when there is one (_Scaffold and install_).
 
 ## Before you start
 
@@ -36,10 +36,10 @@ mb data-app create --body '{"name":"sales-overview","display_name":"Sales overvi
 ## Scaffold and install
 
 ```bash
-mb data-app scaffold sales-overview && cd sales-overview
+mb data-app scaffold <repo>/data_apps/sales-overview && cd <repo>/data_apps/sales-overview
 ```
 
-`scaffold [dir]` takes a **directory**, not the slug: it copies the Vite + React + TypeScript template into a new or empty directory (the current one when omitted) and needs no server. Then install the SDK, then the rest:
+`scaffold [dir]` takes a **directory**, not the slug: it copies the Vite + React + TypeScript template into a new or empty directory (the current one when omitted) and needs no server. When the instance syncs with a git repository (`mb git-sync status`), the directory is `data_apps/<slug>/` in that repository's working tree, where an export writes the app's `data_app.yaml` and bundle: an export leaves the source alone and an import ignores it, so the repository keeps the source with the app. Without one, use any new directory. Then install the SDK, then the rest:
 
 ```bash
 npm install @metabase/embedding-sdk-react@<major>-beta   # <major>: 66 for a version tag v1.66.x (`mb auth status --json | jq -r .version.tag`)
@@ -134,5 +134,5 @@ Admins open every app, enabled or not. Anyone else needs the app enabled (otherw
 
 - **Turn off:** `mb data-app set-enabled <slug> false`. **Rename:** `mb data-app update <slug> --body '{"display_name":"…"}'` (also `description`, `allowed_hosts`).
 - **Outdated:** an app Metabase lists as _Outdated_ targets an older data-app contract: it won't open for anyone, and only admins see it listed, until it's migrated. Tell the user; don't change its code ad hoc.
-- **Move to another instance:** the app, its collection and what the collection holds are git-synced content. `mb git-sync export` (`git-sync`) writes `data_apps/<slug>/` with the bundle, and the collection under `collections/data_apps/`; importing the repository on the other instance recreates them with the same entity IDs, so the same `src/metabase.ts` and bundle work there. On a read-only instance the app's collection can't be edited: change it where it was built and export again.
+- **Move to another instance:** the app, its collection and what the collection holds are git-synced content. `mb git-sync export` (`git-sync`) writes `data_apps/<slug>/` with the bundle, and the collection under `collections/data_apps/`; importing the repository on the other instance recreates them with the same entity IDs, so the same `src/metabase.ts` and bundle work there. Once the app is done, commit its source in `data_apps/<slug>/` on the branch you exported to, after the export: pull first, never edit the files the export wrote, and keep `node_modules/`, `dist/` and `.env.local` out (the template's `.gitignore` does). On a read-only instance the app's collection can't be edited: change it where it was built and export again.
 - **Delete:** confirm with the user, then `mb data-app delete <slug> --yes` — it removes the app, its bundle, its collection and the questions and actions in it. The project directory stays.
