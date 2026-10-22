@@ -1217,6 +1217,120 @@ mb data-action execute 1 --body '{"parameters":{"id":1,"note":"rush"}}'
 mb data-action execute 1 --file values.json
 ```
 
+## Data apps
+
+CRUD on `/api/ee/apps` plus the bundle and the typed schema. A data app is a React app built into one JavaScript bundle, which Metabase serves in a sandbox at `/apps/<slug>`; its questions and actions live in its own collection. Data apps need the `data-apps` premium feature. Admins see and open every app, disabled ones included; other users see only the apps they can open, with just `name` and `display_name`. The `data-app` skill covers building one, with `data-app-ui`, `data-app-data`, `data-app-filters` and `data-app-actions` for its parts.
+
+### `mb data-app scaffold [dir]`
+
+Copy the Vite + React + TypeScript project template into a new or empty directory (the current one by default) and name the package after it. Needs no server. Install the SDK tag matching the instance (`npm install @metabase/embedding-sdk-react@<major>-beta`) before `npm install`.
+
+```sh
+mb data-app scaffold sales-overview
+```
+
+### `mb data-app list`
+
+```sh
+mb data-app list
+mb data-app list --available --json
+```
+
+| Flag          | Description                                             |
+| ------------- | ------------------------------------------------------- |
+| `--available` | Only the apps users can open: enabled and not outdated. |
+
+### `mb data-app get <slug>`
+
+```sh
+mb data-app get sales-overview
+mb data-app get sales-overview --json --full
+```
+
+### `mb data-app create`
+
+```sh
+mb data-app create --body '{"name":"sales-overview","display_name":"Sales overview"}'
+mb data-app create --file app.json --json
+```
+
+Body fields: `name` (required, the slug: lowercase letters, digits and single dashes, at most 100 characters), `display_name` (the slug by default), `description`, `allowed_hosts`, `enabled` (false by default), `bundle_path`, `version`. The app starts with an empty bundle, which `mb data-app set-bundle` replaces. The answer's `resource_collection_id` is the app's collection.
+
+### `mb data-app update <slug>`
+
+Patch a data app; the body carries only the fields to change (`display_name`, `description`, `allowed_hosts`, `enabled`, `bundle_path`, `version`). A disabled app is served only to admins.
+
+```sh
+mb data-app update sales-overview --body '{"enabled":true}'
+```
+
+### `mb data-app typed-schema <slug>`
+
+Print the TypeScript module Metabase generates for the app: a `defineQuery` per question and a `defineAction` per action in its collection, addressed by entity ID.
+
+```sh
+mb data-app typed-schema sales-overview --out src/metabase.ts
+mb data-app typed-schema sales-overview > src/metabase.ts
+```
+
+### `mb data-app set-bundle <slug>`
+
+Replace the app's bundle with a built one (`dist/index.js` by default). Enable a new app with `mb data-app set-enabled <slug> true`.
+
+```sh
+mb data-app set-bundle sales-overview
+mb data-app set-bundle sales-overview --bundle build/index.js
+```
+
+| Flag              | Description                                 |
+| ----------------- | ------------------------------------------- |
+| `--bundle <path>` | Built bundle file. Default `dist/index.js`. |
+
+### `mb data-app set-enabled <slug> <true|false>`
+
+Enable or disable the app. A disabled app is served only to admins.
+
+```sh
+mb data-app set-enabled sales-overview true
+```
+
+### `mb data-app delete <slug>`
+
+Delete the app with its bundle, its collection and the questions and actions in it.
+
+```sh
+mb data-app delete sales-overview --yes
+```
+
+## API keys
+
+CRUD on `/api/api-key`. An API key acts as a member of one group. Only admins manage API keys.
+
+### `mb api-key list`
+
+Each key shows only its masked form.
+
+```sh
+mb api-key list
+mb api-key list --json
+```
+
+### `mb api-key create`
+
+The body needs `name` and `group_id` (2 is Administrators). The key is printed once, as `unmasked_key` under `--json`; no later read returns it.
+
+```sh
+mb api-key create --body '{"name":"ci","group_id":2}' --json
+```
+
+### `mb api-key delete <id>`
+
+Requests made with the key fail from then on.
+
+```sh
+mb api-key delete 3 --yes
+```
+
 ## Segments
 
 CRUD on `/api/segment`. A segment is a saved MBQL filter macro tied to a table — used in card filters to share a reusable predicate. Mutating endpoints require a `revision_message` for the audit log.

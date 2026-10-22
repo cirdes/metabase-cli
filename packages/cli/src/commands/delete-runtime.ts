@@ -7,24 +7,38 @@ import { renderSummary } from "../output/render";
 
 import type { CommonContext } from "./context";
 
-export const DeleteResult = z.object({
-  deleted: z.boolean(),
-  aborted: z.boolean(),
-  id: z.number().int(),
-});
-type DeleteResultJson = z.infer<typeof DeleteResult>;
+const DeleteOutcome = z.object({ deleted: z.boolean(), aborted: z.boolean() });
 
-const deleteResultView: ResourceView<DeleteResultJson> = {
+export const DeleteResult = DeleteOutcome.extend({ id: z.number().int() });
+type DeleteResult = z.infer<typeof DeleteResult>;
+
+export const DeleteBySlugResult = DeleteOutcome.extend({ slug: z.string() });
+type DeleteBySlugResult = z.infer<typeof DeleteBySlugResult>;
+
+const outcomeColumns = [
+  { key: "deleted", label: "Deleted" },
+  { key: "aborted", label: "Aborted" },
+] as const;
+
+const deleteResultView: ResourceView<DeleteResult> = {
   compactPick: DeleteResult,
-  tableColumns: [
-    { key: "id", label: "ID" },
-    { key: "deleted", label: "Deleted" },
-    { key: "aborted", label: "Aborted" },
-  ],
+  tableColumns: [{ key: "id", label: "ID" }, ...outcomeColumns],
 };
 
-interface ConfirmAndDeleteArgs {
+const deleteBySlugResultView: ResourceView<DeleteBySlugResult> = {
+  compactPick: DeleteBySlugResult,
+  tableColumns: [{ key: "slug", label: "Slug" }, ...outcomeColumns],
+};
+
+interface DeleteById {
   id: number;
+}
+
+interface DeleteBySlug {
+  slug: string;
+}
+
+interface ConfirmAndDeleteOptions {
   yes: boolean;
   promptMessage: string;
   successMessage: string;
@@ -32,6 +46,8 @@ interface ConfirmAndDeleteArgs {
   deleteResource: () => Promise<void>;
   ctx: CommonContext;
 }
+
+type ConfirmAndDeleteArgs = ConfirmAndDeleteOptions & (DeleteById | DeleteBySlug);
 
 interface ConfirmArgs {
   yes: boolean;
@@ -54,26 +70,29 @@ export async function confirmDestructive(args: ConfirmArgs): Promise<boolean> {
   return promptConfirm({ message: args.promptMessage, initialValue: false });
 }
 
+function renderDeleteResult(
+  args: ConfirmAndDeleteArgs,
+  outcome: z.infer<typeof DeleteOutcome>,
+  message: string,
+): void {
+  if ("slug" in args) {
+    renderSummary({ ...outcome, slug: args.slug }, deleteBySlugResultView, message, args.ctx);
+    return;
+  }
+  renderSummary({ ...outcome, id: args.id }, deleteResultView, message, args.ctx);
+}
+
 export async function confirmAndDelete(args: ConfirmAndDeleteArgs): Promise<void> {
+  const target = "slug" in args ? args.slug : String(args.id);
   const confirmed = await confirmDestructive({
     yes: args.yes,
-    action: `delete ${args.id}`,
+    action: `delete ${target}`,
     promptMessage: args.promptMessage,
   });
   if (!confirmed) {
-    renderSummary(
-      { deleted: false, aborted: true, id: args.id },
-      deleteResultView,
-      args.abortMessage,
-      args.ctx,
-    );
+    renderDeleteResult(args, { deleted: false, aborted: true }, args.abortMessage);
     return;
   }
   await args.deleteResource();
-  renderSummary(
-    { deleted: true, aborted: false, id: args.id },
-    deleteResultView,
-    args.successMessage,
-    args.ctx,
-  );
+  renderDeleteResult(args, { deleted: true, aborted: false }, args.successMessage);
 }

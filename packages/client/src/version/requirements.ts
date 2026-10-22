@@ -5,6 +5,9 @@ import type { FeatureName } from "./features";
 // list is ordered strictest-first: the first feature the server lacks is the one the refusal names,
 // and naming the lowest floor would send a user through one upgrade only to be refused again.
 export const METHOD_REQUIREMENTS = {
+  "apiKey.list": [],
+  "apiKey.create": [],
+  "apiKey.delete": [],
   "card.list": [],
   "card.get": [],
   "card.create": [],
@@ -39,6 +42,13 @@ export const METHOD_REQUIREMENTS = {
   "dataAction.archive": [],
   "dataAction.delete": [],
   "dataAction.execute": [],
+  "dataApp.list": ["dataApps"],
+  "dataApp.get": ["dataApps"],
+  "dataApp.create": ["dataApps"],
+  "dataApp.update": ["dataApps"],
+  "dataApp.replaceBundle": ["dataApps"],
+  "dataApp.typedSchema": ["dataApps"],
+  "dataApp.delete": ["dataApps"],
   "database.list": [],
   "database.get": [],
   "database.update": [],

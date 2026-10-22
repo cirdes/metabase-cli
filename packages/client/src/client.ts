@@ -1,9 +1,11 @@
 import { type ClientCredentials, type ClientOptions, createTransport } from "./http/transport";
+import { apiKeyResource } from "./resources/api-key";
 import { cardResource } from "./resources/card";
 import { collectionResource } from "./resources/collection";
 import { contentTranslationResource } from "./resources/content-translation";
 import { dashboardResource } from "./resources/dashboard";
 import { dataActionResource } from "./resources/data-action";
+import { dataAppResource } from "./resources/data-app";
 import { databaseResource } from "./resources/database";
 import { datasetResource } from "./resources/dataset";
 import { dependencyResource } from "./resources/dependency";
@@ -46,11 +48,13 @@ import { userResource } from "./resources/user";
 export function createClient(config: ClientCredentials, options: ClientOptions) {
   const transport = createTransport(config, options);
   return {
+    apiKey: apiKeyResource(transport),
     card: cardResource(transport),
     collection: collectionResource(transport),
     contentTranslation: contentTranslationResource(transport),
     dashboard: dashboardResource(transport),
     dataAction: dataActionResource(transport),
+    dataApp: dataAppResource(transport),
     database: databaseResource(transport),
     dataset: datasetResource(transport),
     dependency: dependencyResource(transport),

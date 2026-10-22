@@ -680,6 +680,11 @@ describe("the shipped skills", () => {
 
     expect(bound).toEqual({
       "data-action": ["dataActionsWithoutModel"],
+      "data-app": ["dataApps"],
+      "data-app-actions": ["dataApps"],
+      "data-app-data": ["dataApps"],
+      "data-app-filters": ["dataApps"],
+      "data-app-ui": ["dataApps"],
       "git-sync": ["remoteSync"],
       transform: ["transforms"],
       "transform-test-plan": ["transformTests"],
@@ -694,6 +699,11 @@ describe("the shipped skills", () => {
       "core",
       "dashboard",
       "data-action",
+      "data-app",
+      "data-app-actions",
+      "data-app-data",
+      "data-app-filters",
+      "data-app-ui",
       "data-workflow",
       "document",
       "git-sync",

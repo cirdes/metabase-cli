@@ -1,0 +1,32 @@
+import { DataApp, DataAppUpdateInput } from "@metabase/client/domain/data-app";
+import { dataAppView } from "../../output/views/data-app";
+import { renderSummary } from "../../output/render";
+import { readBody } from "../../runtime/body";
+import { bodyInputFlags } from "../body-flags";
+import { connectionFlags, outputFlags, profileFlag } from "../flags";
+import { defineMetabaseCommand } from "../runtime";
+import { parseSlug, slugArg } from "./slug";
+
+export default defineMetabaseCommand({
+  meta: {
+    name: "update",
+    description: "Update a data app's fields, or enable or disable it",
+  },
+  details:
+    "The JSON body carries only the fields to change: `display_name`, `description`, `allowed_hosts`, `enabled`, `bundle_path`, `version`. A disabled app is served only to admins. `mb data-app set-bundle` replaces the bundle from a built file.",
+  requires: ["dataApp.update"],
+  args: { ...outputFlags, ...profileFlag, ...connectionFlags, ...bodyInputFlags, ...slugArg },
+  inputSchema: DataAppUpdateInput,
+  outputSchema: DataApp,
+  examples: [
+    "mb data-app update sales-overview --body '{\"enabled\":true}'",
+    'mb data-app update sales-overview --body \'{"allowed_hosts":["https://api.example.com"]}\'',
+  ],
+  async run({ args, ctx, getClient }) {
+    const slug = parseSlug(args.slug);
+    const body = await readBody({ flag: args.body, file: args.file }, DataAppUpdateInput);
+    const client = await getClient();
+    const updated = await client.dataApp.update(slug, body);
+    renderSummary(updated, dataAppView, `Updated data app ${updated.name}.`, ctx);
+  },
+});

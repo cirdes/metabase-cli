@@ -1,6 +1,6 @@
 ---
 name: data-action
-description: Author and run Metabase data actions with the `mb` CLI — saved, parameterized native SQL writes (INSERT, UPDATE, DELETE) filed in a collection and run with values. Covers enabling them on a database, the collection they go in, the body, mapping template tags to parameters, running, and the lifecycle. Triggers — "add a data action", "let users update a row", "a button that inserts a record", "run a write query", "a form that saves to the database", "delete rows from Metabase".
+description: Author and run Metabase data actions with the `mb` CLI — saved, parameterized native SQL writes (INSERT, UPDATE, DELETE) filed in a collection and run with values. Covers enabling them on a database, the collection they go in, the body, mapping template tags to parameters, running, and the lifecycle. Triggers — "add a data action", "let users update a row", "a button that inserts a record", "run a write query", "a form that saves to the database", "delete rows from Metabase". Inside a data app, start with `data-app-actions`.
 allowed-tools: Read, Write, Edit, Bash, AskUserQuestion
 requires: [dataActionsWithoutModel]
 ---
