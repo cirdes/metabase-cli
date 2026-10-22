@@ -44,7 +44,7 @@ mb card query <id> --json --max-bytes 0 | jq '{row_count, first: .data.rows[0]}'
 Plan the questions from what the app shows and picks from — each chart, KPI, table and filter option list needs one, and several panels may share one. Each takes one of two shapes:
 
 - **Aggregated**, when the breakdown is fixed: revenue by month, top products. Runtime clauses can then name only the columns it returns, its breakouts and aggregations.
-- **Rows**, when a runtime filter targets a column an aggregation would drop — revenue by month, filtered by product category. The question returns the raw columns (`CREATED_AT`, `TOTAL`, `CATEGORY`), and the hook filters and aggregates them at runtime (_Runtime clauses_).
+- **Rows**, when a runtime filter targets a column an aggregation would drop — revenue by month, filtered by product category. The question returns the raw columns (`CREATED_AT`, `TOTAL`, `CATEGORY`), and the hook filters and aggregates them at runtime (_Runtime clauses_). When a Library metric or measure defines the number, use an aggregated question broken out by the filter column too instead, so the definition stays in one place.
 
 Also:
 
@@ -150,7 +150,7 @@ const { query } = useMetabaseQueryObject(queries.orderRows, {
 - `filter(...)` takes one value: `filter(col, "=", [a, b])` compiles but is not an IN filter, and several filters AND together. So a filter picks one value or All; for a multi-select, ask the user whether a single choice will do.
 - Text operators are case-sensitive, with no option to change it: say so in the search box's placeholder.
 - `time-interval` (`[-30, "day"]`, `[0, "year"]` for this year) is relative to when the query runs: a fixed window belongs in the question, not the hook.
-- On a rows question, aggregate with any of `aggregations.count`, `sum`, `avg`, `median`, `min`, `max`, `distinct`, naming each result (`{ name: "revenue" }`) to order or read it by — two unnamed results of one operator collide, and generated names such as `sum_2` aren't stable. On an aggregated question, re-aggregate only sums and counts, which add up.
+- On a rows question, aggregate with any of `aggregations.count`, `sum`, `avg`, `median`, `min`, `max`, `distinct`, naming each result (`{ name: "revenue" }`) to order or read it by — two unnamed results of one operator collide, and generated names such as `sum_2` aren't stable. On an aggregated question, re-aggregate only sums and counts, which add up, both with `aggregations.sum` (`count` would count rows). Its date column is already bucketed: for a picked date range, break it out by day and roll it up at runtime.
 - A sort the user picks: map each choice to a column explicitly (`{ revenue: "revenue", orders: "order_count" }`) rather than passing the user's value through.
 - `enabled: false` holds the query back, for example until the user picks an item.
 - Write the arrays inline (spreads are fine): the hooks compare by content, so a new array per render doesn't refetch. A clauses object built outside the call needs `as const`, or `aggregations` loses the tuple type `breakouts` need; a shared `ReturnType<typeof filter>[]` built with `push` breaks the operator types the same way.

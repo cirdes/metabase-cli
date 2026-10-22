@@ -85,6 +85,7 @@ export function NoteForm({ orderId, onSaved }: { orderId: number; onSaved: () =>
 After a write succeeds, refetch every query on screen it could have changed: `await Promise.all([orders.refetch(), totals.refetch()])`, the `refetch` that `useMetabaseQuery` returns.
 
 - Those queries live in a component above the trigger, which passes the refresh down; a query in the trigger's own component or below it can't be wired to it.
+- A `StaticQuestion` panel has no `refetch`: give it a `key` the parent bumps after the write, which remounts it and runs the question again.
 - Await the refresh before clearing the form or closing the modal, so stale rows never flash.
 - Never prepend `result` to a local list instead: ids, timestamps and computed columns come from the server.
 
