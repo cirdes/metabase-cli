@@ -15,6 +15,8 @@ import {
 import type { RequestOptions, Transport } from "../http/transport";
 import type { ListResult } from "../list";
 import { type Page, type PaginateOptions, paginatePages } from "../paginate";
+import type { FeatureName } from "../version/features";
+import { explainer, type ParameterRequirement } from "../version/refusal";
 
 // `GET /api/collection` and `GET /api/collection/tree` both answer a bare array rather than a
 // `{ data, total }` envelope, so the count a caller reads off `ListResult` is the array's own
@@ -35,6 +37,8 @@ const DEFAULT_LIST_FILTER = "all";
 // Metabase leaves the Library collections out of the list unless asked.
 const INCLUDE_LIBRARY = { "include-library": true } as const;
 
+const TRASH_ALIAS = "trash";
+
 export interface CollectionListParams {
   filter?: CollectionListFilter | undefined;
   namespace?: CollectionNamespace | undefined;
@@ -53,6 +57,28 @@ export interface CollectionTreeParams {
 
 // The walk's own settings, minus the query the method builds from `CollectionItemListParams`.
 export type CollectionItemPageOptions = Omit<PaginateOptions, "query">;
+
+const MODELS_FIELDS = ["models"];
+
+// A server older than one of these filter values answers 400 naming `models`.
+const ITEM_MODEL_FEATURES: Partial<Record<CollectionItemFilterModel, FeatureName>> = {
+  transform: "transforms",
+  measure: "collectionItemMeasures",
+  exploration: "explorations",
+};
+
+function itemModelFeatures(
+  _ref: CollectionId,
+  params: CollectionItemListParams = {},
+): ParameterRequirement[] {
+  if (params.models === undefined) {
+    return [];
+  }
+  return params.models.flatMap((model) => {
+    const feature = ITEM_MODEL_FEATURES[model];
+    return feature === undefined ? [] : [{ feature, fields: MODELS_FIELDS }];
+  });
+}
 
 // A collection is reachable by numeric id, by 21-character entity id, and by the aliases `root`
 // and `trash`, so every ref reaches the path through `encodeURIComponent`.
@@ -79,6 +105,8 @@ export async function listCollectionsAs<T>(
 }
 
 export function collectionResource(transport: Transport) {
+  const { explainWalk } = explainer(transport, "collection");
+
   /**
    * List collections. `filter` picks a server-side preset: everything, archived, or personal. Every
    * preset includes the Library collections that match it. `namespace` lists that namespace's
@@ -140,23 +168,32 @@ export function collectionResource(transport: Transport) {
 
   /**
    * Walk the items inside a collection one page at a time. This endpoint pages on the server, so
-   * the caller consumes pages rather than a single list and decides how far to pull.
+   * the caller consumes pages rather than a single list and decides how far to pull. The `trash`
+   * alias costs one more request, which reads the trash collection's id. A `models` filter takes
+   * `transform` only with `transforms`, `measure` only with `collectionItemMeasures`, and
+   * `exploration` only with `explorations`.
    */
   async function* itemPages(
     ref: CollectionId,
     params: CollectionItemListParams = {},
     options: CollectionItemPageOptions = {},
   ): AsyncIterable<Page<CollectionItem>> {
-    yield* paginatePages(transport, `/api/collection/${refPath(ref)}/items`, CollectionItem, {
+    const withSignal = options.signal !== undefined && { signal: options.signal };
+    // Every server answers the trash collection at `GET /api/collection/trash`, but none routes
+    // the alias through `/:id/items`, whose id is an integer or an entity id.
+    const itemsRef = ref === TRASH_ALIAS ? (await get(TRASH_ALIAS, { ...withSignal })).id : ref;
+    yield* paginatePages(transport, `/api/collection/${refPath(itemsRef)}/items`, CollectionItem, {
       query: {
         models: params.models,
         archived: params.archived,
+        // 58 through 63 read `pinned_state` and 64 on `pinned-state`; each drops the other unread.
         pinned_state: params.pinned_state,
+        "pinned-state": params.pinned_state,
       },
       ...(options.offset !== undefined && { offset: options.offset }),
       ...(options.max !== undefined && { max: options.max }),
       ...(options.pageSize !== undefined && { pageSize: options.pageSize }),
-      ...(options.signal !== undefined && { signal: options.signal }),
+      ...withSignal,
     });
   }
 
@@ -172,5 +209,13 @@ export function collectionResource(transport: Transport) {
     return { data, total: null };
   }
 
-  return { list, get, create, update, archive, itemPages, tree };
+  return {
+    list,
+    get,
+    create,
+    update,
+    archive,
+    itemPages: explainWalk("itemPages", itemPages, itemModelFeatures),
+    tree,
+  };
 }

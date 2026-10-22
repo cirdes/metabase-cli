@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { TokenFeatures } from "../domain/session-properties";
+import { KNOWN_RANGE } from "./known-range";
 
 // A rule holds on every major from `since` through `until` (both inclusive) on which the server
 // also grants `tokenFeature`. Names describe the behaviour a consumer branches on, never the
@@ -21,8 +22,12 @@ export const FEATURE_RULES = {
   transforms: { since: 59 },
   transformJobActivation: { since: 61 },
   measures: { since: 59 },
+  collectionItemMeasures: { since: 61 },
+  explorations: { since: 65 },
+  tableFromDefinition: { since: 64 },
   library: { since: 59, tokenFeature: "library" },
   libraryDashboards: { since: 65 },
+  tablePublishTargetCollection: { since: 62 },
   remoteSync: { since: 58, tokenFeature: "remote_sync" },
   remoteSyncRemoteChanges: { since: 59, tokenFeature: "remote_sync" },
   remoteSyncCollectionsOnlyUpdate: { since: 60 },
@@ -32,6 +37,7 @@ export const FEATURE_RULES = {
   contentTranslation: { since: 58, tokenFeature: "content_translation" },
   contentVerification: { since: 58, tokenFeature: "content_verification" },
   transformTargetTableId: { since: 61 },
+  transformSourceTablesAsList: { since: 60 },
   transformTargetTableLinkedOnCreate: { since: 61, until: 61 },
   transformJobRunIdIsNumeric: { since: 64 },
   transformCheckpointReset: { since: 60 },
@@ -51,6 +57,7 @@ export const FEATURE_RULES = {
   dependencyItemListings: { since: 59, tokenFeature: "dependencies" },
   dependencyAsyncBackfill: { since: 60, tokenFeature: "dependencies" },
   measureDependencyGraph: { since: 59 },
+  actionDependencyGraph: { since: 65 },
   tableListAccessFilters: { since: 59 },
   tableListTransformTargets: { since: 60 },
   tableListPublishedFilter: { since: 63 },
@@ -63,7 +70,7 @@ export const FEATURE_RULES = {
   documentCopy: { since: 59 },
   transformInspector: { since: 60, tokenFeature: "transforms-python" },
   pythonLibrary: { since: 58, tokenFeature: "transforms-python" },
-  pythonTestRun: { since: 60, tokenFeature: "transforms-python" },
+  pythonTestRun: { since: 58, tokenFeature: "transforms-python" },
   sourceReplacement: { since: 60, tokenFeature: "dependencies" },
   metricDefinitionQuery: { since: 60 },
   metricDimensionListing: { since: 64 },
@@ -82,6 +89,31 @@ export const FEATURE_NAMES: ReadonlyArray<FeatureName> =
 
 export const Features = z.record(z.enum(FEATURE_NAMES), z.boolean());
 export type Features = z.infer<typeof Features>;
+
+/**
+ * Which servers hold `feature`, as a reader says it: the majors its rule spans and the token
+ * feature it needs, each left out where every supported server meets it.
+ */
+export function featureAvailability(feature: FeatureName): string {
+  const rule: FeatureRule = FEATURE_RULES[feature];
+  const token = rule.tokenFeature === undefined ? null : `token ${rule.tokenFeature}`;
+  const parts = [majorSpan(rule), token].filter((part) => part !== null);
+  if (parts.length === 0) {
+    throw new Error(`${feature} holds on every supported server, so it gates nothing`);
+  }
+  return parts.join(", ");
+}
+
+function majorSpan(rule: FeatureRule): string | null {
+  const floor = rule.since > KNOWN_RANGE.min ? `v${rule.since}` : null;
+  if (rule.until === undefined) {
+    return floor === null ? null : `${floor}+`;
+  }
+  if (floor === null) {
+    return `up to v${rule.until}`;
+  }
+  return rule.since === rule.until ? `${floor} only` : `${floor}-v${rule.until}`;
+}
 
 // The major a rule reads: a release's own, or `"development"` for a build ahead of every release,
 // which is past every `since` and every `until`.

@@ -1,9 +1,9 @@
 import { renderUsage } from "citty";
-import type { ArgsDef, CommandDef, SubCommandsDef } from "citty";
+import type { ArgsDef, CommandDef } from "citty";
 
-import { flagSpellings, readArgv, resolveCitty, toAliasArray } from "../runtime/citty";
+import { flagSpellings, readArgv, resolveCitty } from "../runtime/citty";
 import { getMetabaseAugment, type SkillPointer } from "../runtime/command-augment";
-import { buildHelpEntry, buildHelpIndex } from "../runtime/command-help";
+import { buildHelpEntry, buildHelpIndex, CLI_NAME, findSubCommand } from "../runtime/command-help";
 import { jsonLine } from "./render";
 
 export const ANSI_ESC = String.fromCharCode(27);
@@ -24,8 +24,6 @@ const OPTIONS_HEADER = "OPTIONS";
 const LINE_PREFIX = "  ";
 const COLUMN_GAP = "  ";
 const COMMAND_PLACEHOLDER = "<command> [options]";
-
-const CLI_NAME = "mb";
 
 const HELP_FLAG_SPEC = "-h, --help";
 const HELP_FLAG_DESCRIPTION = "Show help for this command";
@@ -78,7 +76,11 @@ export async function showUsage<T extends ArgsDef = ArgsDef>(
   if (isRoot) {
     sections.push(GETTING_STARTED_HINT);
   }
-  sections.push(machineHelpHint(breadcrumb ?? cittyName, hasSubCommands));
+  const schemas: DeclaredSchemas = {
+    body: augment !== null && augment.input !== null,
+    output: augment !== null && augment.outputSchema !== null,
+  };
+  sections.push(machineHelpHint(breadcrumb ?? cittyName, { hasSubCommands, schemas }));
   await writeUsage(sections.join("\n\n") + "\n");
 }
 
@@ -109,12 +111,40 @@ function breadcrumbPath(breadcrumb: string): string[] {
   return segments[0] === CLI_NAME ? segments.slice(1) : segments;
 }
 
-const MACHINE_HELP_LEAF_LABEL = "Machine-readable help (flags, output schema):";
 const MACHINE_HELP_INDEX_LABEL = "Machine-readable command index:";
+const MACHINE_HELP_LEAF_LABEL = "Machine-readable help (flags):";
 
-function machineHelpHint(breadcrumb: string, hasSubCommands: boolean): string {
-  const label = hasSubCommands ? MACHINE_HELP_INDEX_LABEL : MACHINE_HELP_LEAF_LABEL;
-  return `${label} ${breadcrumb} --help --json`;
+interface DeclaredSchemas {
+  body: boolean;
+  output: boolean;
+}
+
+interface MachineHelpTarget {
+  hasSubCommands: boolean;
+  schemas: DeclaredSchemas;
+}
+
+function machineHelpHint(breadcrumb: string, target: MachineHelpTarget): string {
+  if (target.hasSubCommands) {
+    return `${MACHINE_HELP_INDEX_LABEL} ${breadcrumb} --help --json`;
+  }
+  const helpLine = `${MACHINE_HELP_LEAF_LABEL} ${breadcrumb} --help --json`;
+  const schemaLine = schemaHint(breadcrumbPath(breadcrumb).join(" "), target.schemas);
+  return schemaLine === null ? helpLine : `${helpLine}\n${schemaLine}`;
+}
+
+function schemaHint(command: string, schemas: DeclaredSchemas): string | null {
+  const schema = `${CLI_NAME} schema ${command}`;
+  if (schemas.body && schemas.output) {
+    return `Body and output schemas: ${schema} [--output]`;
+  }
+  if (schemas.body) {
+    return `Body schema: ${schema}`;
+  }
+  if (schemas.output) {
+    return `Output schema: ${schema} --output`;
+  }
+  return null;
 }
 
 function transformBody(lines: string[], rewrite: UsageRewrite): string[] {
@@ -218,11 +248,6 @@ function renderExamples(examples: readonly string[]): string {
   return ["EXAMPLES", "", ...examples.map((example) => `${LINE_PREFIX}${example}`)].join("\n");
 }
 
-interface SubCommandMatch {
-  name: string;
-  command: CommandDef;
-}
-
 interface CommandPath {
   segments: string[];
   unknownToken: string | null;
@@ -306,30 +331,4 @@ function skipFlags(rawArgs: readonly string[], start: number, argsDef: ArgsDef):
     }
   }
   return rawArgs.length;
-}
-
-async function findSubCommand(
-  subCommands: SubCommandsDef,
-  token: string,
-): Promise<SubCommandMatch | null> {
-  const direct = subCommands[token];
-  if (direct !== undefined) {
-    const command = await resolveCitty(direct);
-    if (command === undefined) {
-      return null;
-    }
-    const meta = await resolveCitty(command.meta);
-    return { name: meta?.name ?? token, command };
-  }
-  for (const [key, loader] of Object.entries(subCommands)) {
-    const command = await resolveCitty(loader);
-    if (command === undefined) {
-      continue;
-    }
-    const meta = await resolveCitty(command.meta);
-    if (toAliasArray(meta?.alias).includes(token)) {
-      return { name: meta?.name ?? key, command };
-    }
-  }
-  return null;
 }

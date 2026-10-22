@@ -14,7 +14,6 @@ import {
 
 import {
   assertNotLegacyEnvelopeWrappingMbql5,
-  getQuerySchemaBundle,
   isMbql5Query,
   validateQuery,
   ValidationOutcome,
@@ -24,20 +23,16 @@ import { renderItem, renderSummary, serializeJson, writeJson } from "../output/r
 import { pipeToStdout } from "../output/stream";
 import { cardQueryView } from "../output/views/card";
 import { compiledQueryView, queryMetadataView } from "../output/views/dataset";
-import { readBody } from "../runtime/body";
+import { readJsonBody } from "../runtime/body";
 import type { InputSources } from "../runtime/input";
 import { bodyInputFlags } from "./body-flags";
 import { assertStreamedOutput } from "./export-flags";
 import { connectionFlags, outputFlags, profileFlag } from "./flags";
 import { queryModeFlags, resolveQueryMode } from "./query-mode";
 import { defineMetabaseCommand } from "./runtime";
-import { skipValidateFlag } from "./validate-query";
+import { QUERY_DOCUMENTS, skipValidateFlag } from "./validate-query";
 
-const QueryBody = z
-  .unknown()
-  .describe(
-    'The query body: {"lib/type": "mbql/query", database, stages}; full schema: mb query --print-schema',
-  );
+const QueryBody = z.unknown();
 
 const QueryDryRunOutcome = ValidationOutcome.extend({
   sql: z.string().nullable().describe("The compiled native query; null when it did not compile"),
@@ -69,7 +64,7 @@ export default defineMetabaseCommand({
     description: "Run, compile, or inspect an ad-hoc MBQL or native query",
   },
   details:
-    'Reads a JSON query body from --body, --file, or stdin and runs it. MBQL 5 is Metabase\'s structured query format, shaped {"lib/type": "mbql/query", "database": <database id>, "stages": [{"lib/type": "mbql.stage/mbql", "source-table": <table id>, "aggregation": [["count", {}]]}]} with ids from `mb database list` and `mb table list`; it is checked against a bundled JSON Schema before sending, and --print-schema prints that schema. --dry-run checks the body without running it: the local schema check, then the server compiles it to native SQL without touching the warehouse. It prints {ok, errors:[{path, message}], sql} and exits 0 when the query compiled, 2 when either check rejected it. Legacy MBQL 4 and legacy native bodies skip the local check. --compile prints the native query the server compiles the body to, --metadata the databases, tables, fields and snippets the body touches, and --export-format streams the rows as csv, json or xlsx; the three are mutually exclusive with each other, with --dry-run and with --print-schema. An export takes its column formatting and pivot layout from --visualization-settings, since an ad-hoc query has no card to read them from: --pivot-results needs their pivot_table.column_split.',
+    'Reads a JSON query body from --body, --file, or stdin and runs it. MBQL 5 is Metabase\'s structured query format, shaped {"lib/type": "mbql/query", "database": <database id>, "stages": [{"lib/type": "mbql.stage/mbql", "source-table": <table id>, "aggregation": [["count", {}]]}]} with ids from `mb database list` and `mb table list`; it is checked against a bundled JSON Schema before sending, and `mb schema query` prints that schema. --dry-run checks the body without running it: the local schema check, then the server compiles it to native SQL without touching the warehouse. It prints {ok, errors:[{path, message}], sql} and exits 0 when the query compiled, 2 when either check rejected it. Legacy MBQL 4 and legacy native bodies skip the local check. --compile prints the native query the server compiles the body to, --metadata the databases, tables, fields and snippets the body touches, and --export-format streams the rows as csv, json or xlsx; the three are mutually exclusive with each other and with --dry-run. An export takes its column formatting and pivot layout from --visualization-settings, since an ad-hoc query has no card to read them from: --pivot-results needs their pivot_table.column_split.',
   skills: [{ skill: "mbql", purpose: "body shape, clause rules, and the dry-run loop" }],
   requires: ["dataset.exportQuery", "dataset.native", "dataset.query", "dataset.queryMetadata"],
   args: {
@@ -80,10 +75,10 @@ export default defineMetabaseCommand({
     ...queryModeFlags,
     ...skipValidateFlag,
   },
-  inputSchema: QueryBody,
+  inputDocuments: QUERY_DOCUMENTS,
   outputSchema: QueryOutput,
   examples: [
-    "mb query --print-schema",
+    "mb schema query",
     "cat q.json | mb query --dry-run",
     "mb query --file q.json",
     "mb query --file q.json --compile",
@@ -93,11 +88,6 @@ export default defineMetabaseCommand({
   ],
   async run({ args, ctx, getClient }) {
     const mode = resolveQueryMode(args);
-    if (mode.kind === "print-schema") {
-      writeJson(getQuerySchemaBundle());
-      return;
-    }
-
     const skip = args["skip-validate"] === true;
     if (mode.kind === "dry-run" && skip) {
       throw new ConfigError("--skip-validate cannot be combined with --dry-run");
@@ -188,10 +178,10 @@ function compilePermissionFailure(error: HttpError): MetabaseError {
   );
 }
 
-// Held to the query shape after the pre-flight rather than by `readBody`, so a body that is no query
+// Held to the query shape after the pre-flight rather than as it is read, so a body that is no query
 // is a usage error in every mode, as the pre-flight's own refusals are.
 async function readQuery(sources: InputSources, options: PreflightOptions): Promise<DatasetQuery> {
-  const body = await readBody(sources, QueryBody);
+  const body = await readJsonBody(sources, QueryBody);
   preflightQuery(body, options);
   return DatasetQuery.parse(body);
 }

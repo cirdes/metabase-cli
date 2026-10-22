@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import { gateInput } from "../version/input-gate-registry";
+
+import { TABLE_FROM_DEFINITION_GATE } from "./table";
+
 export const Measure = z
   .object({
     id: z.number().int(),
@@ -36,7 +40,7 @@ const MeasureDefinition = z
 export const MeasureCreateInput = z
   .object({
     name: z.string().min(1),
-    table_id: z.number().int().positive(),
+    table_id: gateInput(z.number().int().positive(), TABLE_FROM_DEFINITION_GATE),
     definition: MeasureDefinition,
     description: z.string().nullable().optional(),
   })

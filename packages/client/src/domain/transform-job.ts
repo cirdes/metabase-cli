@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import type { Features } from "../version/features";
+import { gateInput } from "../version/input-gate-registry";
+import type { InputGate } from "../version/input-gates";
 import { CronUiDisplayType } from "./cron";
 
 const JobRunStatus = z.enum(["started", "succeeded", "failed", "timeout", "canceled"]);
@@ -81,13 +83,21 @@ export const TransformJobCreateInput = z
   .loose();
 export type TransformJobCreateInput = z.infer<typeof TransformJobCreateInput>;
 
+// A server without job activation drops `active` unread. It is sent anyway, as before: such a server
+// reads every job back as active, so the answer shows a deactivation that did not take.
+export const TRANSFORM_JOB_ACTIVE_GATE: InputGate = {
+  feature: "transformJobActivation",
+  effect: "needs",
+  when: { kind: "present" },
+};
+
 export const TransformJobUpdateInput = z
   .object({
     name: z.string().min(1).optional(),
     description: z.string().min(1).nullable().optional(),
     schedule: z.string().min(1).optional(),
     ui_display_type: CronUiDisplayType.optional(),
-    active: z.boolean().optional(),
+    active: gateInput(z.boolean().optional(), TRANSFORM_JOB_ACTIVE_GATE),
     tag_ids: z.array(z.number().int().positive()).optional(),
   })
   .loose();

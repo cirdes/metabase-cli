@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import { gateInput } from "../version/input-gate-registry";
+
+import { TABLE_FROM_DEFINITION_GATE } from "./table";
+
 export const Segment = z
   .object({
     id: z.number().int(),
@@ -36,7 +40,7 @@ const SegmentDefinition = z
 export const SegmentCreateInput = z
   .object({
     name: z.string().min(1),
-    table_id: z.number().int().positive(),
+    table_id: gateInput(z.number().int().positive(), TABLE_FROM_DEFINITION_GATE),
     definition: SegmentDefinition,
     description: z.string().nullable().optional(),
   })

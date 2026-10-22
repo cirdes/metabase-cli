@@ -49,6 +49,7 @@ export default defineMetabaseCommand({
   examples: [
     "mb collection items 4",
     "mb collection items root --json",
+    "mb collection items trash --json",
     "mb collection items 4 --models card,dashboard --json",
     "mb collection items 4 --pinned-state is_pinned --json",
   ],

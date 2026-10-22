@@ -4,8 +4,9 @@ import {
   Dashboard,
   DashboardCopy,
   type DashboardCopyInput,
-  type DashboardCreateInput,
-  DashboardDetail,
+  DashboardCreateInput,
+  type DashboardDetail,
+  dashboardDetailSchema,
   type DashboardListFilter,
   type DashboardParameterConstraints,
   type DashboardTab,
@@ -21,6 +22,7 @@ import type { RequestOptions, Transport } from "../http/transport";
 import type { ListResult } from "../list";
 
 import { cardResource } from "./card";
+import { parseRequestBody } from "./request-body";
 
 // `GET /api/dashboard` answers a bare array rather than a `{ data, total }` envelope, so the count a
 // caller reads off `ListResult` is the array's own length and the server reports none.
@@ -90,21 +92,23 @@ export function dashboardResource(transport: Transport) {
 
   /** Get one dashboard by id, with its dashcards, tabs and parameters. */
   async function get(id: number, options: RequestOptions = {}): Promise<DashboardDetail> {
-    return transport.requestParsed(DashboardDetail, `/api/dashboard/${id}`, { ...options });
+    return transport.requestParsed(dashboardDetailSchema, `/api/dashboard/${id}`, { ...options });
   }
 
   /**
    * Create a dashboard. The endpoint accepts no dashcards or tabs — a follow-up `update` is what
-   * puts content on a fresh dashboard.
+   * puts content on a fresh dashboard. A key `DashboardCreateInput` does not declare is dropped
+   * before the request, as the server drops it.
    */
   async function create(
     params: DashboardCreateInput,
     options: RequestOptions = {},
   ): Promise<Dashboard> {
+    const body = parseRequestBody(DashboardCreateInput, params, "dashboard");
     return transport.requestParsed(Dashboard, "/api/dashboard", {
       ...options,
       method: "POST",
-      body: params,
+      body,
     });
   }
 
@@ -120,7 +124,7 @@ export function dashboardResource(transport: Transport) {
     options: RequestOptions = {},
   ): Promise<DashboardDetail> {
     const body = await withCurrentTabs(id, params, options);
-    return transport.requestParsed(DashboardDetail, `/api/dashboard/${id}`, {
+    return transport.requestParsed(dashboardDetailSchema, `/api/dashboard/${id}`, {
       ...options,
       method: "PUT",
       body,

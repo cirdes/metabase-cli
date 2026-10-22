@@ -3,7 +3,8 @@ import { z } from "zod";
 export const CurrentUser = z
   .object({
     id: z.number().int(),
-    email: z.email(),
+    // Metabase's own check admits addresses a stricter one refuses, such as `a!b@host.1`.
+    email: z.string(),
     common_name: z.string(),
     is_superuser: z.boolean(),
   })

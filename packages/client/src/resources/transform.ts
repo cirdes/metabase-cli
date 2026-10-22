@@ -17,6 +17,7 @@ import {
   type TransformRunSummarySortColumn,
   type TransformRunSummaryType,
   transformRowSchema,
+  transformSourceBody,
   type TransformUpdateInput,
 } from "../domain/transform";
 import type { SortDirection } from "../domain/query";
@@ -110,12 +111,26 @@ export function transformResource(transport: Transport) {
     });
   }
 
+  // The body is shaped by the profile in force, as a read is: a profile that outlived an upgrade or
+  // a downgrade sends a shape the server refuses with a 400, never one it misreads.
+  async function writeBody(
+    params: TransformCreateInput | TransformUpdateInput,
+    options: RequestOptions,
+  ) {
+    if (params.source === undefined) {
+      return params;
+    }
+    const { features } = await transport.server(options);
+    return { ...params, source: transformSourceBody(params.source, features) };
+  }
+
   /** Create a transform — a query plus the warehouse table it writes — from a full body. */
   async function create(
     params: TransformCreateInput,
     options: RequestOptions = {},
   ): Promise<Transform> {
-    return requestTransform("/api/transform", { ...options, method: "POST", body: params });
+    const body = await writeBody(params, options);
+    return requestTransform("/api/transform", { ...options, method: "POST", body });
   }
 
   /** Update a transform by id, patching only the fields the body carries. */
@@ -124,7 +139,8 @@ export function transformResource(transport: Transport) {
     params: TransformUpdateInput,
     options: RequestOptions = {},
   ): Promise<Transform> {
-    return requestTransform(`/api/transform/${id}`, { ...options, method: "PUT", body: params });
+    const body = await writeBody(params, options);
+    return requestTransform(`/api/transform/${id}`, { ...options, method: "PUT", body });
   }
 
   /** Delete a transform by id, leaving any table it already materialized in place. */

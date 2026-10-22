@@ -4,7 +4,7 @@ Every template-tag body, the widget-type vocabulary, and the parameter-object sh
 
 ## Template-tag bodies by `type`
 
-The `template-tags` value is a map keyed by tag name; each entry's `name` must equal its key and the `{{name}}` in the SQL. `id` is any string unique among the tags; the tag's name serves.
+Author the `template-tags` value as a map keyed by tag name; each entry's `name` must equal its key and the `{{name}}` in the SQL. A card read back carries the same entries as a list, which the server also takes. `id` is any string unique among the tags; the tag's name serves.
 
 ### Raw variable — `text` / `number` / `date` / `boolean`
 

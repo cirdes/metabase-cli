@@ -6,6 +6,7 @@ import { type MethodKey, methodRequirements } from "@metabase/client/version/req
 
 import { defineMetabaseCommand } from "../commands/runtime";
 import main from "../main";
+import { getMetabaseAugment } from "./command-augment";
 import { buildHelpEntry, buildHelpIndex, resolveCommandPath } from "./command-help";
 import type { CommandHelpEntry } from "./command-help";
 
@@ -143,7 +144,7 @@ describe("buildHelpEntry", () => {
     ]);
   });
 
-  it("emits the JSON Schema of outputSchema and forwards examples for metabase commands", async () => {
+  it("forwards examples and leaves both schemas to mb schema for metabase commands", async () => {
     const leaf = defineMetabaseCommand({
       meta: { name: "leaf", description: "leaf" },
       requires: [],
@@ -163,42 +164,7 @@ describe("buildHelpEntry", () => {
       skills: [],
       examples: ["root leaf --json"],
       args: [],
-      inputSchema: null,
-      outputSchema: {
-        $schema: "https://json-schema.org/draft/2020-12/schema",
-        type: "object",
-        properties: {
-          ok: { type: "boolean" },
-          name: { type: "string" },
-        },
-        required: ["ok", "name"],
-        additionalProperties: false,
-      },
       requires: { methods: [], features: [] },
-    });
-  });
-
-  it("emits the JSON Schema of inputSchema for commands that declare a body contract", async () => {
-    const leaf = defineMetabaseCommand({
-      meta: { name: "create", description: "create" },
-      requires: [],
-      args: {},
-      inputSchema: z.object({ name: z.string() }),
-      run() {
-        return;
-      },
-    });
-
-    const entry = await buildHelpEntry(leaf, ["create"]);
-
-    expect(entry.inputSchema).toEqual({
-      $schema: "https://json-schema.org/draft/2020-12/schema",
-      type: "object",
-      properties: {
-        name: { type: "string" },
-      },
-      required: ["name"],
-      additionalProperties: false,
     });
   });
 
@@ -271,8 +237,6 @@ describe("buildHelpEntry", () => {
       skills: [],
       examples: [],
       args: [],
-      inputSchema: null,
-      outputSchema: null,
       requires: null,
     });
   });
@@ -294,8 +258,6 @@ describe("buildHelpEntry", () => {
       skills: [],
       examples: [],
       args: [],
-      inputSchema: null,
-      outputSchema: null,
       requires: null,
     });
   });
@@ -490,6 +452,7 @@ const ALL_COMMANDS = [
   "timeline-event delete",
   "eid",
   "query",
+  "schema",
   "uuid",
   "upgrade",
   "skills list",
@@ -581,8 +544,14 @@ describe("command tree contract", () => {
     const withoutExamples = entries
       .filter((entry) => entry.examples.length === 0)
       .map((entry) => entry.command);
-    const withoutOutputSchema = entries
-      .filter((entry) => entry.outputSchema === null)
+    const outputSchemas = await Promise.all(
+      ALL_COMMANDS.map(async (command) => {
+        const augment = getMetabaseAugment(await resolveCommandPath(main, command.split(" ")));
+        return { command, declared: augment !== null && augment.outputSchema !== null };
+      }),
+    );
+    const withoutOutputSchema = outputSchemas
+      .filter((entry) => !entry.declared)
       .map((entry) => entry.command);
     expect(entries.length).toBe(ALL_COMMANDS.length);
     expect({ withoutExamples, withoutOutputSchema }).toEqual({
@@ -594,8 +563,14 @@ describe("command tree contract", () => {
   it("declares an input schema on every command that accepts a JSON body", async () => {
     const entries = await allEntries();
     const acceptingBody = entries.filter((entry) => entry.args.some((arg) => arg.name === "body"));
-    const withoutInputSchema = acceptingBody
-      .filter((entry) => entry.inputSchema === null)
+    const declared = await Promise.all(
+      acceptingBody.map(async ({ command }) => {
+        const augment = getMetabaseAugment(await resolveCommandPath(main, command.split(" ")));
+        return { command, declared: augment !== null && augment.input !== null };
+      }),
+    );
+    const withoutInputSchema = declared
+      .filter((entry) => !entry.declared)
       .map((entry) => entry.command);
     expect(acceptingBody.map((entry) => entry.command)).toEqual(BODY_COMMANDS);
     expect(withoutInputSchema).toEqual([]);
@@ -717,6 +692,7 @@ describe("command tree contract", () => {
     expect(local.toSorted()).toEqual([
       "auth status",
       "data-app scaffold",
+      "schema",
       "skills get",
       "skills list",
       "skills path",

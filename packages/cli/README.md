@@ -8,4 +8,4 @@ mb --help
 ```
 
 Commands, authentication, output flags and environment variables are documented at
-<https://github.com/metabase/mb-cli#readme>.
+<https://github.com/metabase/metabase-cli#readme>.

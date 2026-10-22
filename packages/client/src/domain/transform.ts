@@ -45,15 +45,51 @@ const TransformCheckpointStrategy = z
   })
   .loose();
 
-export const TransformSourceTableEntry = z
+// `schema` may be absent so a reference a server keying the tables by alias stored without one can
+// be written back; a server that requires it answers its own 400.
+const TransformSourceTableRefInput = z
   .object({
     alias: z.string(),
     database_id: z.number().int(),
-    schema: z.string().nullable(),
+    schema: z.string().nullable().optional(),
     table: z.string().optional(),
     table_id: z.number().int().nullable().optional(),
   })
   .loose();
+
+// An entry naming its table by id alone, as a server keying the tables by alias holds one and the
+// readers below answer it, so a transform read from that server can be written back to it.
+const TransformSourceTableIdInput = z
+  .object({
+    alias: z.string(),
+    table_id: z.number().int(),
+    database_id: z.null().optional(),
+    schema: z.null().optional(),
+    table: z.null().optional(),
+  })
+  .loose();
+type TransformSourceTableIdInput = z.infer<typeof TransformSourceTableIdInput>;
+
+export const TransformSourceTableEntryInput = z.union([
+  TransformSourceTableRefInput,
+  TransformSourceTableIdInput,
+]);
+export type TransformSourceTableEntryInput = z.infer<typeof TransformSourceTableEntryInput>;
+
+function namesTableByIdAlone(
+  entry: TransformSourceTableEntryInput,
+): entry is TransformSourceTableIdInput {
+  return typeof entry.database_id !== "number";
+}
+
+// The server requires only `alias`, and keeps an entry whose table or database is gone without the
+// rest. `database_id`, `schema` and `table` are null where a server keying the tables by alias names
+// a table by its id alone, and so cannot say.
+export const TransformSourceTableEntry = TransformSourceTableRefInput.extend({
+  database_id: z.number().int().nullable().optional(),
+  schema: z.string().nullable().optional(),
+  table: z.string().nullable().optional(),
+});
 export type TransformSourceTableEntry = z.infer<typeof TransformSourceTableEntry>;
 
 const TransformQuerySource = z
@@ -75,6 +111,91 @@ const TransformPythonSource = z
   .loose();
 
 const TransformSource = z.discriminatedUnion("type", [TransformQuerySource, TransformPythonSource]);
+type TransformSource = z.infer<typeof TransformSource>;
+
+// A server without the list keys a Python source's tables by alias. It stores each value as a table
+// id or a reference by name, but answers every read with the table id alone, `null` for a reference
+// whose table is not found. Its entry takes the alias from the key, as the server's own migration to
+// the list does; that migration reads the database, schema and name of an id off the table row.
+const TransformSourceTableRefWireV59 = z
+  .object({
+    database_id: z.number().int(),
+    schema: z.string().nullable().optional(),
+    table: z.string(),
+    table_id: z.number().int().nullable().optional(),
+  })
+  .loose();
+
+const TransformSourceTableWireV59 = z.union([
+  z.number().int(),
+  z.null(),
+  TransformSourceTableRefWireV59,
+]);
+
+const TransformSourceTablesWireV59 = z.record(z.string(), TransformSourceTableWireV59);
+
+function toSourceTableEntry(
+  alias: string,
+  wire: z.infer<typeof TransformSourceTableWireV59>,
+): TransformSourceTableEntry {
+  if (wire === null || typeof wire === "number") {
+    return { alias, table_id: wire, database_id: null, schema: null, table: null };
+  }
+  return { ...wire, alias };
+}
+
+function fromAliasMap(
+  wire: z.infer<typeof TransformSourceTablesWireV59>,
+): TransformSourceTableEntry[] {
+  return Object.entries(wire).map(([alias, value]) => toSourceTableEntry(alias, value));
+}
+
+const TransformPythonSourceWireV59 = TransformPythonSource.extend({
+  "source-tables": TransformSourceTablesWireV59.transform(fromAliasMap),
+});
+
+const TransformSourceWireV59 = z.discriminatedUnion("type", [
+  TransformQuerySource,
+  TransformPythonSourceWireV59,
+]);
+
+function transformSourceSchema(features: Features): z.ZodType<TransformSource> {
+  return features.transformSourceTablesAsList ? TransformSource : TransformSourceWireV59;
+}
+
+const TransformPythonSourceInput = TransformPythonSource.extend({
+  "source-tables": z.array(TransformSourceTableEntryInput),
+});
+
+const TransformSourceInput = z.discriminatedUnion("type", [
+  TransformQuerySource,
+  TransformPythonSourceInput,
+]);
+type TransformSourceInput = z.infer<typeof TransformSourceInput>;
+
+// Inverts what a server without the list reads: the alias becomes the key, and the value is the bare
+// table id an entry naming its table by id alone was read from, else the reference less its alias,
+// which 59 reads and 58, taking only table ids, refuses with its own 400.
+function toAliasMapValue(entry: TransformSourceTableEntryInput) {
+  const { alias: _alias, ...reference } = entry;
+  return namesTableByIdAlone(entry) ? entry.table_id : reference;
+}
+
+/** Each entry keyed by its alias, its value chosen by `value`, as a server without the list reads it. */
+export function keyedByAlias<T>(
+  entries: readonly TransformSourceTableEntryInput[],
+  value: (entry: TransformSourceTableEntryInput) => T,
+): Record<string, T> {
+  return Object.fromEntries(entries.map((entry) => [entry.alias, value(entry)]));
+}
+
+/** A transform body's `source` as a server with `features` reads it. */
+export function transformSourceBody(source: TransformSourceInput, features: Features) {
+  if (features.transformSourceTablesAsList || source.type !== "python") {
+    return source;
+  }
+  return { ...source, "source-tables": keyedByAlias(source["source-tables"], toAliasMapValue) };
+}
 
 const TransformAppendStrategy = z.object({ type: z.literal("append") }).loose();
 
@@ -284,14 +405,18 @@ function withoutLink(row: z.infer<typeof TransformBase>): Transform {
 
 /** The shape `GET /api/transform/{id}` answers on a server with `features`, read as `Transform`. */
 export function transformDetailSchema(features: Features): z.ZodType<Transform> {
+  const source = transformSourceSchema(features);
   return features.transformTargetTableId
-    ? Transform
-    : TransformWireV59Detail.transform(fromHydratedTable);
+    ? Transform.extend({ source })
+    : TransformWireV59Detail.extend({ source }).transform(fromHydratedTable);
 }
 
 /** The shape every other transform endpoint answers on a server with `features`, read as `Transform`. */
 export function transformRowSchema(features: Features): z.ZodType<Transform> {
-  return features.transformTargetTableId ? Transform : TransformBase.transform(withoutLink);
+  const source = transformSourceSchema(features);
+  return features.transformTargetTableId
+    ? Transform.extend({ source })
+    : TransformBase.extend({ source }).transform(withoutLink);
 }
 
 export const TransformCompact = Transform.pick({
@@ -310,7 +435,7 @@ export const TransformCreateInput = z
   .object({
     name: z.string().min(1),
     description: z.string().nullable().optional(),
-    source: TransformSource,
+    source: TransformSourceInput,
     target: TransformTarget,
     run_trigger: TransformRunTrigger.optional(),
     tag_ids: z.array(z.number().int().positive()).optional(),
@@ -325,7 +450,7 @@ export const TransformUpdateInput = z
   .object({
     name: z.string().min(1).optional(),
     description: z.string().nullable().optional(),
-    source: TransformSource.optional(),
+    source: TransformSourceInput.optional(),
     target: TransformTarget.optional(),
     run_trigger: TransformRunTrigger.optional(),
     tag_ids: z.array(z.number().int().positive()).optional(),

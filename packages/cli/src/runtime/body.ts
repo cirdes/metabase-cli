@@ -5,11 +5,11 @@ import { parseJson } from "@metabase/client/json";
 
 import { DEFAULT_FLAG_NAME, givenValue, readInput, type InputSources } from "./input";
 
-interface BodySources extends InputSources {
+export interface BodySources extends InputSources {
   source?: string | undefined;
 }
 
-export async function readBody<T>(sources: BodySources, schema: ZodType<T>): Promise<T> {
+export async function readJsonBody<T>(sources: BodySources, schema: ZodType<T>): Promise<T> {
   assertSingleSource(sources);
   const raw = await readInput(sources);
   return parseJson(raw, schema, { source: sources.source ?? "request body" });

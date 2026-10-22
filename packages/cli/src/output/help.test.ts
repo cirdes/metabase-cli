@@ -9,7 +9,7 @@ import { connectionFlags, outputFlags, profileFlag } from "../commands/flags";
 import { defineCommandGroup } from "../commands/group";
 import { defineMetabaseCommand } from "../commands/runtime";
 import { setMetabaseAugment } from "../runtime/command-augment";
-import { CommandHelpEntry, CommandHelpIndex } from "../runtime/command-help";
+import { CommandHelpIndex } from "../runtime/command-help";
 import { findUnknownCommand, resolveBreadcrumb, showUsage, showUsageJson } from "./help";
 
 describe("showUsage", () => {
@@ -164,7 +164,26 @@ describe("showUsage", () => {
     expect(shortRow).toMatch(/Short description$/);
   });
 
-  it("appends a machine-readable help hint pointing at --help --json on a leaf page", async () => {
+  it("points a leaf with a body and an output at its help JSON and both schemas", async () => {
+    const cmd = defineMetabaseCommand({
+      meta: { name: "bar", description: "demo bar" },
+      requires: [],
+      args: {},
+      inputSchema: z.object({ name: z.string() }),
+      outputSchema: z.object({ ok: z.boolean() }),
+      run() {
+        return;
+      },
+    });
+
+    await showUsage(cmd, undefined, "mb foo bar");
+    expect(trailingLines(chunks.join(""), 2)).toEqual([
+      "Machine-readable help (flags): mb foo bar --help --json",
+      "Body and output schemas: mb schema foo bar [--output]",
+    ]);
+  });
+
+  it("labels a leaf without a body as flags only and points at its output schema", async () => {
     const cmd = defineMetabaseCommand({
       meta: { name: "bar", description: "demo bar" },
       requires: [],
@@ -176,8 +195,67 @@ describe("showUsage", () => {
     });
 
     await showUsage(cmd, undefined, "mb foo bar");
-    const out = chunks.join("");
-    expect(out).toContain("Machine-readable help (flags, output schema): mb foo bar --help --json");
+    expect(trailingLines(chunks.join(""), 2)).toEqual([
+      "Machine-readable help (flags): mb foo bar --help --json",
+      "Output schema: mb schema foo bar --output",
+    ]);
+  });
+
+  it("points a leaf with only a body at its body schema", async () => {
+    const cmd = defineMetabaseCommand({
+      meta: { name: "bar", description: "demo bar" },
+      requires: [],
+      args: {},
+      inputSchema: z.object({ name: z.string() }),
+      run() {
+        return;
+      },
+    });
+
+    await showUsage(cmd, undefined, "mb foo bar");
+    expect(trailingLines(chunks.join(""), 2)).toEqual([
+      "Machine-readable help (flags): mb foo bar --help --json",
+      "Body schema: mb schema foo bar",
+    ]);
+  });
+
+  it("labels a leaf with a documents body as flags only and points at its body schema", async () => {
+    const cmd = defineMetabaseCommand({
+      meta: { name: "bar", description: "demo bar" },
+      requires: [],
+      args: {},
+      inputDocuments: {
+        title: "Demo query",
+        command: ["foo", "bar"],
+        bundle: { schema: { type: "object" }, defs: {} },
+      },
+      run() {
+        return;
+      },
+    });
+
+    await showUsage(cmd, undefined, "mb foo bar");
+    expect(trailingLines(chunks.join(""), 2)).toEqual([
+      "Machine-readable help (flags): mb foo bar --help --json",
+      "Body schema: mb schema foo bar",
+    ]);
+  });
+
+  it("leaves the schema hint off a leaf that declares neither schema", async () => {
+    const cmd = defineMetabaseCommand({
+      meta: { name: "bar", description: "demo bar" },
+      requires: [],
+      args: {},
+      run() {
+        return;
+      },
+    });
+
+    await showUsage(cmd, undefined, "mb foo bar");
+    expect(trailingLines(chunks.join(""), 2)).toEqual([
+      "",
+      "Machine-readable help (flags): mb foo bar --help --json",
+    ]);
   });
 
   it("appends a machine-readable index hint on a command-group page", async () => {
@@ -337,7 +415,7 @@ describe("showUsage", () => {
       examples: [],
       details: null,
       skills: [{ skill: "core", purpose: "auth and conventions" }],
-      inputSchema: null,
+      input: null,
       outputSchema: null,
       requires: null,
     });
@@ -423,7 +501,7 @@ describe("showUsageJson", () => {
     });
 
     await showUsageJson(leaf, "mb foo bar");
-    const entry = parseJson(chunks.join(""), CommandHelpEntry, { source: "help json" });
+    const entry = parseJson(chunks.join(""), z.unknown(), { source: "help json" });
 
     expect(entry).toEqual({
       command: "foo bar",
@@ -431,14 +509,6 @@ describe("showUsageJson", () => {
       skills: [],
       examples: ["mb foo bar --json"],
       args: [],
-      inputSchema: null,
-      outputSchema: {
-        $schema: "https://json-schema.org/draft/2020-12/schema",
-        type: "object",
-        properties: { ok: { type: "boolean" } },
-        required: ["ok"],
-        additionalProperties: false,
-      },
       requires: { methods: ["card.list"], features: [] },
     });
   });
@@ -557,3 +627,8 @@ describe("findUnknownCommand", () => {
     expect(await findUnknownCommand(tree(), ["foo", "frob"])).toBe("frob");
   });
 });
+
+// The page ends in a newline, so its last lines are the ones before the empty tail.
+function trailingLines(page: string, count: number): string[] {
+  return page.split("\n").slice(-count - 1, -1);
+}

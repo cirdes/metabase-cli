@@ -212,7 +212,7 @@ describe("collection resource wire requests", () => {
       {
         url:
           "https://mb.example.com/metabase/api/collection/root/items" +
-          "?models=card&models=dashboard&archived=true&pinned_state=is_pinned&limit=2&offset=10",
+          "?models=card&models=dashboard&archived=true&pinned_state=is_pinned&pinned-state=is_pinned&limit=2&offset=10",
         method: "GET",
         headers: JSON_READ_HEADERS,
         body: null,

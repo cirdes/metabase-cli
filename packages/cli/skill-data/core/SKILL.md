@@ -1,6 +1,6 @@
 ---
 name: core
-description: Foundations for driving Metabase from the terminal with the `mb` CLI — authentication and named profiles, the flag/output/`--json` conventions every command shares, JSON body input, command discovery via `--help` (add `--json` for machine-readable schemas), and the per-resource footguns (db, table, field, upload, content translation, card, dashboard, collection, segment, measure, timeline, alert, subscription, library, setting, search, eid). Load first for any `mb` task; it routes to the specialized skills for deeper work.
+description: Foundations for driving Metabase from the terminal with the `mb` CLI — authentication and named profiles, the flag/output/`--json` conventions every command shares, JSON body input, command discovery via `--help` and `mb schema`, and the per-resource footguns (db, table, field, upload, content translation, card, dashboard, collection, segment, measure, timeline, alert, subscription, library, setting, search, eid). Load first for any `mb` task; it routes to the specialized skills for deeper work.
 allowed-tools: Read, Write, Edit, Bash, AskUserQuestion
 ---
 
@@ -13,10 +13,10 @@ Top-level command groups (run `mb <group> --help` to discover verbs):
 ```
 auth | db | table | field | upload | content-translation | query | card | dashboard | snippet | segment | measure | collection | library
 document | glossary | timeline | timeline-event | transform | transform-job | transform-tag | transform-test | alert | subscription | setting
-search | dependency | git-sync | data-action | data-app | setup | eid | uuid | upgrade | skills
+search | dependency | git-sync | data-action | data-app | setup | eid | uuid | upgrade | skills | schema
 ```
 
-The conventions below — auth, flags, output, body input — hold across **every** group. Per-command flags and examples live in each command's `--help`; add `--json` for the machine-readable form with the output JSON Schema. A few flows have their own skills (see "Specialized skills"). When a card needs a query, prefer MBQL over native SQL (portable, pre-flight-validated — load `mbql`); fall back to native SQL when MBQL can't express it.
+The conventions below — auth, flags, output, body input — hold across **every** group. A few flows have their own skills (see "Specialized skills"). When a card needs a query, prefer MBQL over native SQL (portable, pre-flight-validated — load `mbql`); fall back to SQL when MBQL can't express it.
 
 ## Auth & profiles
 
@@ -28,13 +28,13 @@ mb auth status --json                    # → {profile, present, url} for the d
 mb auth status --profile <name> --json   # health probe for one profile
 ```
 
-`auth list` is the primary enumeration path — one call returns every profile with sanitized URL, an `authenticated` flag, and a probe `status` (`ok` / `auth-failed` / `network-error` / `server-error` / `not-probed`). Use it before asking which profile to pick.
+`auth list` returns every profile in one call, with sanitized URL, an `authenticated` flag, and a probe `status` (`ok` / `auth-failed` / `network-error` / `server-error` / `not-probed`). Use it before asking which profile to pick.
 
 - One profile and intent doesn't disambiguate → use it.
 - Several → ask via `AskUserQuestion`, presenting the names from `auth list`.
 - Empty `data: []` → ask the user to run `mb auth login` themselves and tell you the profile name.
 
-Once a name is established, pass `--profile <name>` to **every** subsequent command. Profile names are arbitrary local labels (`prod`, `staging`).
+Profile names are arbitrary local labels (`prod`, `staging`).
 
 ## Flag conventions
 
@@ -46,7 +46,7 @@ Once a name is established, pass `--profile <name>` to **every** subsequent comm
 ❌ mb table --profile prod list  # → unknown command: prod
 ```
 
-**`--wait` for async operations.** `transform run`, `git-sync import`, and similar verbs return immediately by default. Pass `--wait` whenever the next step depends on completion — without it you race the operation and see "not ready" / transient connection refusals.
+**`--wait` for async operations.** `transform run`, `git-sync import`, and similar verbs return immediately; pass `--wait` whenever the next step depends on completion — without it you race the operation and see "not ready" / transient connection refusals.
 
 **Some "lookup" verbs return JSON envelopes, not bare values.** `mb setting get <key>` returns `{"key": "...", "value": ...}`. Extract before reusing:
 
@@ -94,7 +94,7 @@ Verbs that take a payload accept it from one of four sources, **first non-empty 
 3. stdin (auto-detected when piped; `--file -` names it explicitly)
 4. positional argument
 
-Exactly one required; passing more than one of `--body` / `--file` / a positional argument is rejected with a `ConfigError`.
+Exactly one; more than one of `--body` / `--file` / a positional argument is a `ConfigError`.
 
 ```bash
 cat > ./.scratch/body.json <<'EOF'
@@ -105,7 +105,7 @@ mb <noun> create --file ./.scratch/body.json --profile <n> --json
 
 Single-quoted `'EOF'` stops the shell interpolating `$vars` inside the JSON.
 
-Write working files to **`./.scratch`** in the current directory (`mkdir -p ./.scratch` first), never `/tmp` — better permissions, they persist across the session, and the user can review them.
+Write working files to **`./.scratch`** in the current directory (`mkdir -p ./.scratch` first), never `/tmp`: better permissions, kept for the session, reviewable by the user.
 
 ## Discovering commands and schemas
 
@@ -113,12 +113,13 @@ Cheapest source that answers the question wins:
 
 - What groups/verbs exist? → `mb --help`, then `mb <group> --help`. Add `--json` for a machine-readable `{command, description}` index (`mb --help --json` lists every command).
 - What flags does a command take? → `mb <command> --help` — flags with enums and defaults, examples, ~1 KB.
-- Output JSON Schema before parsing, JSON-body input schema before authoring, machine-readable arg types, min server version? → `mb <command> --help --json` — that command's full entry (`inputSchema` is the exact validator the command runs on the body; `null` when it takes none).
+- Body shape before authoring, output before parsing? → `mb schema <command>`: the body's JSON Schema, a feature a field needs in its `description`; `--output` for output.
+- Flags, arg types, needed features? → `mb <command> --help --json`.
 
 ```bash
 mb card query --help                                    # flags, enums, defaults, examples
-mb card list --help --json | jq .outputSchema           # output schema before parsing
-mb card create --help --json | jq .inputSchema          # body schema before authoring
+mb schema card create                                   # body schema before authoring
+mb schema card list --output                            # output schema before parsing
 mb transform --help --json | jq -r '.commands[].command'  # verbs under "transform"
 ```
 
@@ -152,7 +153,7 @@ What `--help` doesn't say: footguns and non-obvious behaviors.
 <!-- requires: transforms -->
 - **transform.** Iterate with `transform update <id>`, never `delete` + `create` (keeps the row, `entity_id`, materialized table, and YAML filename — avoids `_2` suffixes and noisy git history). `transform run` needs `--wait` (or `--sync`, which also waits for the output table to register and returns `target_table_id`) or you get only `{run_id, final:null}`. (→ `transform`.)
 <!-- /requires -->
-- **setup is one-shot.** `mb setup` walks `/api/setup` for a **fresh** instance only — errors against an already-configured one. Mostly for bootstrapping local / e2e instances.
+- **setup is one-shot.** `mb setup` walks `/api/setup` for a **fresh** instance only and errors on a configured one; mostly for bootstrapping local / e2e instances.
 - **eid** translates a string entity id → numeric id: `mb eid --model <model> <eid1,eid2> --json`. Entity ids are NanoIDs that can start with `-`, which the positional form misreads as a flag (shell quotes don't help) — for those, use `--body '{"entity_ids":{"card":["-…"]}}'` (the id is a JSON string value, immune to flag parsing).
 <!-- requires: library -->
 - **library.** The Library is a curated subtree (`library-data` "Data" + `library-metrics` "Metrics" under a `library` root): tables in **Data** lead data pickers and rank up in search; metrics in **Metrics** lead nav, search, and the query builder. `library get` shows its Data/Metrics collection ids; `library create` provisions it (idempotent). `library publish --table-ids/--db-ids/--schemas` publishes tables into Data, **resolving the Data collection and creating the Library if absent**; each `--schemas` entry is `<db-id>:<schema>` (`1:public`), not a bare name. `publish` cascades to upstream FK dependencies, `unpublish` to downstream dependents; both need **admin or data-analyst** (Curate alone won't publish) and exit **403** without write **and** query permission on every affected table. `table get`/`table list` carry `is_published` (`collection_id` under `--full`). On a remote-sync instance, `mb git-sync add-collection <library-id>` (the root) makes exports carry published tables' metadata (see `git-sync`).
