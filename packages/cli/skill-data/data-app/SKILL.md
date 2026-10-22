@@ -1,0 +1,138 @@
+---
+name: data-app
+description: Create, preview, publish and manage a Metabase data app — a React app Metabase serves at /apps/<slug> — create it, scaffold its project, run the dev preview and read its diagnostics feed, build and publish the bundle, turn it on or off, move it to another instance, delete it. Triggers — "build a data app", "make an internal tool in Metabase", "scaffold a data app", "publish my data app", "update the app", "the app is blank". Start here; the UI is in `data-app-ui`, questions and charts in `data-app-data`, filter controls in `data-app-filters`, writes in `data-app-actions`.
+allowed-tools: Read, Write, Edit, Bash, AskUserQuestion
+requires: [dataApps]
+---
+
+# Data apps
+
+A **data app** is a React app built into one JavaScript bundle, which Metabase runs in a sandbox at `/apps/<slug>`. Each app has its own collection — **the app's collection** — and the questions and actions in it are everything the app can run. Flag conventions are in `core`.
+
+The work, in order:
+
+1. Create the app on the instance.
+2. Scaffold the project and install the SDK.
+3. Give it data: questions over the Library's published tables and metrics in the app's collection, then `src/metabase.ts` (`data-app-data`); writes are `data-app-actions`.
+4. Start the dev preview (_Dev preview_), then write the UI under `src/` (`data-app-ui`; filter controls in `data-app-filters`).
+5. Build and publish (_Build and publish_).
+
+For every later change: regenerate `src/metabase.ts` if the app's collection changed, then build and set the bundle. Metabase receives only the built bundle; the source stays in the project directory, under git if the user keeps one.
+
+## Before you start
+
+- Use an **admin** profile — only admins create apps and write the app's collection. `mb auth status --json | jq .user.isAdmin` prints `true` for one; otherwise ask the user for an admin profile (`mb auth list`).
+- Run `mb data-app list`. A failure means the instance has no data apps: stop and tell the user.
+- Settle the **slug**, the `/apps/<slug>` URL: lowercase letters, digits and single dashes (`sales-overview`), at most 100 characters. If the app's purpose is unclear, ask "what's this app for?" and propose one.
+
+## Create the app
+
+```bash
+mb data-app create --body '{"name":"sales-overview","display_name":"Sales overview"}' --json
+```
+
+`name` is the slug; `display_name` and `description` are optional. The app starts disabled, with an empty bundle. The answer's `resource_collection_id` is the id of the app's collection — note it. A `409` means the slug is taken: `mb data-app list` shows that app; reuse it or pick another slug.
+
+## Scaffold and install
+
+```bash
+mb data-app scaffold sales-overview && cd sales-overview
+```
+
+`scaffold [dir]` takes a **directory**, not the slug: it copies the Vite + React + TypeScript template into a new or empty directory (the current one when omitted) and needs no server. Then install the SDK, then the rest:
+
+```bash
+npm install @metabase/embedding-sdk-react@<major>-beta   # <major>: 66 for a version tag v1.66.x (`mb auth status --json | jq -r .version.tag`)
+npm install && npm run typecheck && npm run build
+```
+
+Skip the SDK line when `package.json` already points it at a local build (`file:` or `link:`), and never install `latest`. A tag without a version number, such as `vLOCAL_DEV`, is a development build: ask the user which SDK build to install. The starter renders "Hello, data app".
+
+The template is the bundle contract. Don't edit `package.json` by hand, and never rewrite `vite.config.ts`, `tsconfig.json` or `src/index.tsx`: `vite.config.ts` stays `export default dataAppConfig()` (its only option is `port`), and `src/index.tsx` default-exports the `DataAppFactory` — change it only to add a `providerProps` key. Metabase and the dev preview each wrap the app in a `<MetabaseProvider>`, so the app never renders one.
+
+**An existing project.** Before changing an app you didn't scaffold in this session, check both: `vite.config.ts` is `export default dataAppConfig()` from `@metabase/embedding-sdk-react/data-app-dev/config`, with no local `config/` directory; and `src/index.tsx` default-exports a `DataAppFactory` that takes no arguments and returns `{ component, providerProps? }`. If either fails, stop: tell the user the project differs from the template, and ask whether to scaffold a fresh project and port the code over, or go on at their own risk.
+
+## Dev preview
+
+`npm run dev` serves the app at `http://localhost:5174` — or the next free port, in Vite's `Local:` line — through the same sandbox Metabase uses. An edit under `src/` rebuilds the bundle and remounts the app, resetting component state. The preview reads `DATA_APP_MB_URL` and an admin `DATA_APP_MB_API_KEY` from `.env.local` beside `package.json`. Write a new key straight into that file, never into the chat or the terminal:
+
+```bash
+( umask 077
+  URL=$(mb auth status --json | jq -r .url)
+  KEY=$(mb api-key create --body '{"name":"data-app <slug> dev","group_id":2}' --json | jq -r .unmasked_key)
+  [ -n "$KEY" ] && [ "$KEY" != null ] && printf 'DATA_APP_MB_URL=%s\nDATA_APP_MB_API_KEY=%s\n' "$URL" "$KEY" > .env.local && echo written )
+```
+
+Group `2` is Administrators. Never print `.env.local`. Delete the key at handoff (`mb api-key list`, then `mb api-key delete <id> --yes`); the next session writes a new one. A CORS error means the instance doesn't allow the preview's origin: ask the user to add `http://localhost:5174` under Admin → Embedding → Embedded analytics SDK → CORS.
+
+### The diagnostics feed
+
+Sandbox blocks, failed queries and uncaught errors never reach the terminal. With a preview tab open, read them from the feed:
+
+```bash
+curl -s "http://localhost:5174/__data-app/diagnostics?startEventId=0"
+```
+
+```jsonc
+{
+  "entries": [
+    {
+      "eventId": 31,
+      "kind": "blocked-network",
+      "alert": true,
+      "summary": "Blocked fetch to api.example.com (not in allowed_hosts)",
+      "detail": null,
+      "hint": "…",
+      "buildId": 7,
+    },
+  ],
+  "clients": 1, // open preview tabs; 0 means nothing ran
+  "buildId": 7, // the bundle running now
+  "staleEntries": 164, // withheld: reported by a build already replaced
+  "nextEventId": 32, // pass back as ?startEventId=
+}
+```
+
+- `clients: 0` means no tab is open, so empty `entries` prove nothing.
+- Before an edit, note `nextEventId`; after it, read again with that value as `startEventId`.
+- The feed answers for the running bundle: entries from replaced builds are counted in `staleEntries`, and anything still broken reports again under the new `buildId` (`?includeStale=true` shows the withheld ones). A failed build doesn't advance `buildId` and doesn't reach the feed — read the `npm run dev` terminal.
+- Quote `summary` as it is when you report it, and follow `hint` when there is one — except that you never add the Metabase URL to `allowed_hosts`. The feed keeps the last 200 entries; `curl -X DELETE …/__data-app/diagnostics` clears it.
+
+| `kind`                             | Fix                                                                                                                 |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `blocked-network`, `csp-violation` | An external API: `data-app-ui`, _External APIs_. A `script-src` or `style-src` violation: bundle the asset instead. |
+| `blocked-api`                      | Blocked in Metabase too: use the replacement in `data-app-ui`.                                                      |
+| `sdk-call` with `alert: true`      | A Metabase request failed; `summary` names it.                                                                      |
+| `error`                            | A bug; `detail` has the stack.                                                                                      |
+
+## Build and publish
+
+```bash
+npm run typecheck && npm run build
+mb data-app set-bundle sales-overview
+mb data-app set-enabled sales-overview true   # the first time
+```
+
+`set-bundle` uploads `dist/index.js` (`--bundle` for another path) and replaces the app's bundle, live at once. A new app is disabled until `set-enabled` turns it on. Give the user `<metabase-url>/apps/<slug>`.
+
+Admins open every app, enabled or not. Anyone else needs the app enabled (otherwise "not found") and one of their groups assigned to it (otherwise "You don't have access"), which only the user can do (Admin → Settings → Data apps → the app → Groups). A group reaches the app's collection and nothing more, so a viewer also needs data access to the tables its questions read.
+
+## Pitfalls
+
+| Symptom                                                             | Fix                                                                                                                    |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `set-bundle`: bundle not found                                      | Run `npm run build` in the project directory first.                                                                    |
+| Blank app, `Bundle did not assign a function to __dataAppFactory__` | `src/index.tsx` must `export default` the factory and nothing else; otherwise the diagnostics feed has the real error. |
+| "Failed to fetch the user, the session might be invalid."           | A bad key in `.env.local`, or CORS (_Dev preview_).                                                                    |
+| A bundle of several MB                                              | `vite.config.ts` no longer uses `dataAppConfig()`, or the SDK isn't the `<major>-beta` tag.                            |
+| "Invalid hook call"                                                 | A second React got bundled: nothing may add another `react` or `react-dom`.                                            |
+| Drill-through popups don't open                                     | The app renders its own `<MetabaseProvider>`: remove it.                                                               |
+| A rebuilt or reinstalled SDK still behaves like the old one         | Vite caches it: stop `npm run dev`, delete `node_modules/.vite`, start again.                                          |
+| A viewer's query or action fails with 403                           | It reads something outside the app's collection, or the viewer lacks data access to its tables.                        |
+
+## Change, move, delete
+
+- **Turn off:** `mb data-app set-enabled <slug> false`. **Rename:** `mb data-app update <slug> --body '{"display_name":"…"}'` (also `description`, `allowed_hosts`).
+- **Outdated:** an app Metabase lists as _Outdated_ targets an older data-app contract: it won't open for anyone, and only admins see it listed, until it's migrated. Tell the user; don't change its code ad hoc.
+- **Move to another instance:** the app, its collection and what the collection holds are git-synced content. `mb git-sync export` (`git-sync`) writes `data_apps/<slug>/` with the bundle, and the collection under `collections/data_apps/`; importing the repository on the other instance recreates them with the same entity IDs, so the same `src/metabase.ts` and bundle work there. On a read-only instance the app's collection can't be edited: change it where it was built and export again.
+- **Delete:** confirm with the user, then `mb data-app delete <slug> --yes` — it removes the app, its bundle, its collection and the questions and actions in it. The project directory stays.

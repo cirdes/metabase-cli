@@ -116,6 +116,13 @@ export type { ParseJsonOptions } from "./json";
 export { assertEndpointOrigin, displayUrl, normalizeUrl } from "./url";
 
 export {
+  ApiKey,
+  ApiKeyCompact,
+  ApiKeyCreateInput,
+  CreatedApiKey,
+  CreatedApiKeyCompact,
+} from "./domain/api-key";
+export {
   Card,
   CardCompact,
   CardCreateInput,
@@ -180,6 +187,16 @@ export {
   dataActionSchema,
   DataActionUpdateInput,
 } from "./domain/data-action";
+export {
+  DataApp,
+  DataAppCompact,
+  DataAppCreateInput,
+  DataAppEntry,
+  DataAppListFilter,
+  DataAppSlug,
+  DataAppSummary,
+  DataAppUpdateInput,
+} from "./domain/data-app";
 export {
   Database,
   DatabaseCompact,

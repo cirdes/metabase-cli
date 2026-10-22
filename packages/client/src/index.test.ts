@@ -6,6 +6,7 @@ import * as barrel from "./index";
 import {
   createClient,
   isHttpNotFound,
+  ApiKeyCreateInput,
   CardCreateInput,
   CardUpdateInput,
   CollectionCreateInput,
@@ -17,6 +18,8 @@ import {
   DataActionCreateInput,
   DataActionExecuteInput,
   DataActionUpdateInput,
+  DataAppCreateInput,
+  DataAppUpdateInput,
   DocumentCopyInput,
   DocumentCreateInput,
   DocumentUpdateInput,
@@ -91,6 +94,7 @@ function pin<T>(schema: z.ZodType<T>): z.ZodType<T> {
 }
 
 const writePath = {
+  ApiKeyCreateInput: pin<ApiKeyCreateInput>(ApiKeyCreateInput),
   CardCreateInput: pin<CardCreateInput>(CardCreateInput),
   CardUpdateInput: pin<CardUpdateInput>(CardUpdateInput),
   CollectionCreateInput: pin<CollectionCreateInput>(CollectionCreateInput),
@@ -102,6 +106,8 @@ const writePath = {
   DataActionCreateInput: pin<DataActionCreateInput>(DataActionCreateInput),
   DataActionExecuteInput: pin<DataActionExecuteInput>(DataActionExecuteInput),
   DataActionUpdateInput: pin<DataActionUpdateInput>(DataActionUpdateInput),
+  DataAppCreateInput: pin<DataAppCreateInput>(DataAppCreateInput),
+  DataAppUpdateInput: pin<DataAppUpdateInput>(DataAppUpdateInput),
   DocumentCopyInput: pin<DocumentCopyInput>(DocumentCopyInput),
   DocumentCreateInput: pin<DocumentCreateInput>(DocumentCreateInput),
   DocumentUpdateInput: pin<DocumentUpdateInput>(DocumentUpdateInput),
