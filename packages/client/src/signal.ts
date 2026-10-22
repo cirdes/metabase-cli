@@ -31,8 +31,21 @@ export function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undef
   }
   throwIfAborted(signal);
   return new Promise<T>((resolve, reject) => {
-    const onAbort = (): void => reject(abortReason(signal));
-    signal.addEventListener("abort", onAbort, { once: true });
-    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+    const stopWatching = whenAborted(signal, reject);
+    promise.then(resolve, reject).finally(stopWatching);
   });
+}
+
+// Calls `onAbort` with the signal's reason when it aborts, and returns the function that stops
+// watching. A signal already aborted never fires, so check it with `throwIfAborted` first.
+export function whenAborted(
+  signal: AbortSignal | undefined,
+  onAbort: (reason: MetabaseError) => void,
+): () => void {
+  if (signal === undefined) {
+    return () => undefined;
+  }
+  const listener = (): void => onAbort(abortReason(signal));
+  signal.addEventListener("abort", listener, { once: true });
+  return () => signal.removeEventListener("abort", listener);
 }

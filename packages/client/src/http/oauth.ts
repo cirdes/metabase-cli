@@ -3,6 +3,7 @@ import { z } from "zod";
 import { SessionProperties } from "../domain/session-properties";
 import { JSON_CONTENT_TYPE, parseJsonResult } from "../json";
 import { ConfigError, errorMessage, TimeoutError } from "../errors";
+import { combineAborts, throwIfAborted } from "../signal";
 import { assertEndpointOrigin } from "../url";
 import { PROBE_PATH, serverInfoFromProperties } from "../version/probe";
 import { createServerProfile } from "../version/profile";
@@ -22,6 +23,7 @@ interface OAuthRequest {
   userAgent: string;
   headers: Record<string, string>;
   body?: string | URLSearchParams;
+  signal?: AbortSignal | undefined;
 }
 
 // Single fetch path for every OAuth protocol call: stamps the caller's user-agent, enforces the
@@ -35,9 +37,10 @@ async function oauthFetch(request: OAuthRequest): Promise<Response> {
       method: request.method,
       headers: { ...request.headers, "user-agent": request.userAgent },
       ...(request.body !== undefined ? { body: request.body } : {}),
-      signal: timeoutSignal,
+      signal: combineAborts(timeoutSignal, request.signal),
     });
   } catch (error) {
+    throwIfAborted(request.signal);
     if (timeoutSignal.aborted) {
       throw new TimeoutError(`OAuth request timed out after ${OAUTH_TIMEOUT_MS}ms`, {
         kind: "http",
@@ -88,6 +91,7 @@ export interface ClientRegistration {
   redirectUri: string;
   clientName: string;
   userAgent: string;
+  signal?: AbortSignal | undefined;
 }
 
 export interface CodeExchange {
@@ -97,6 +101,7 @@ export interface CodeExchange {
   clientId: string;
   codeVerifier: string;
   userAgent: string;
+  signal?: AbortSignal | undefined;
 }
 
 export interface TokenRefresh {
@@ -113,11 +118,18 @@ export interface TokenRevocation {
   userAgent: string;
 }
 
-async function readJson<T>(response: Response, schema: z.ZodType<T>, source: string): Promise<T> {
+// The request's signal also cuts off its body, so a read failing after an abort is the abort.
+async function readJson<T>(
+  response: Response,
+  schema: z.ZodType<T>,
+  source: string,
+  signal: AbortSignal | undefined,
+): Promise<T> {
   let raw: unknown;
   try {
     raw = await response.json();
   } catch (error) {
+    throwIfAborted(signal);
     throw new ConfigError(`${source}: invalid JSON response (${errorMessage(error)})`);
   }
   const parsed = schema.safeParse(raw);
@@ -130,10 +142,10 @@ async function readJson<T>(response: Response, schema: z.ZodType<T>, source: str
 async function failure(
   response: Response,
   source: string,
-  method: OAuthMethod,
-  url: string,
+  request: OAuthRequest,
 ): Promise<ConfigError | HttpError> {
   const rawBody = await response.text().catch(() => "");
+  throwIfAborted(request.signal);
   // Transient/server statuses (5xx, 429, 408) go through the HTTP taxonomy — retryable, exit 1 —
   // not ConfigError. A ConfigError from a refresh is read as a dead grant ("log in again"); a
   // token-endpoint blip must not be mistaken for one.
@@ -141,8 +153,8 @@ async function failure(
     return new HttpError({
       status: response.status,
       statusText: response.statusText,
-      method,
-      url,
+      method: request.method,
+      url: request.url,
       responseHeaders: response.headers,
       rawBody,
     });
@@ -161,18 +173,21 @@ async function postForm<T>(
   params: Record<string, string>,
   schema: z.ZodType<T>,
   source: string,
+  signal?: AbortSignal,
 ): Promise<T> {
-  const response = await oauthFetch({
+  const request: OAuthRequest = {
     url,
     method: "POST",
     userAgent,
     headers: { "content-type": FORM_CONTENT_TYPE, accept: JSON_CONTENT_TYPE },
     body: new URLSearchParams(params),
-  });
+    signal,
+  };
+  const response = await oauthFetch(request);
   if (!response.ok) {
-    throw await failure(response, source, "POST", url);
+    throw await failure(response, source, request);
   }
-  return readJson(response, schema, source);
+  return readJson(response, schema, source, signal);
 }
 
 export const OAUTH_UNSUPPORTED_MESSAGE =
@@ -186,6 +201,7 @@ export const OAUTH_UNSUPPORTED_MESSAGE =
 async function fetchMetadata(
   baseUrl: string,
   userAgent: string,
+  signal?: AbortSignal,
 ): Promise<OAuthServerMetadata | null> {
   const url = `${baseUrl}${DISCOVERY_PATH}`;
   const response = await oauthFetch({
@@ -193,13 +209,14 @@ async function fetchMetadata(
     method: "GET",
     userAgent,
     headers: { accept: JSON_CONTENT_TYPE },
+    signal,
   });
   const contentType = response.headers.get("content-type") ?? "";
   if (!response.ok || !contentType.includes("json")) {
     await response.body?.cancel().catch(() => undefined);
     return null;
   }
-  return readJson(response, OAuthServerMetadata, "OAuth discovery");
+  return readJson(response, OAuthServerMetadata, "OAuth discovery", signal);
 }
 
 // Pin every endpoint we will send secrets to back to the configured base URL's origin before any
@@ -227,21 +244,23 @@ async function grantsFullAccessScope(
   metadata: OAuthServerMetadata,
   baseUrl: string,
   userAgent: string,
+  signal?: AbortSignal,
 ): Promise<boolean> {
   if (metadata.scopes_supported?.includes(OAUTH_SCOPE) === true) {
     return true;
   }
-  const url = `${baseUrl}${PROBE_PATH}`;
-  const response = await oauthFetch({
-    url,
+  const request: OAuthRequest = {
+    url: `${baseUrl}${PROBE_PATH}`,
     method: "GET",
     userAgent,
     headers: { accept: JSON_CONTENT_TYPE },
-  });
+    signal,
+  };
+  const response = await oauthFetch(request);
   if (!response.ok) {
-    throw await failure(response, "Server properties", "GET", url);
+    throw await failure(response, "Server properties", request);
   }
-  const properties = await readJson(response, SessionProperties, "Server properties");
+  const properties = await readJson(response, SessionProperties, "Server properties", signal);
   const profile = createServerProfile(serverInfoFromProperties(properties));
   return profile.features.oauthFullAccessScopeUnadvertised;
 }
@@ -250,9 +269,10 @@ async function grantsFullAccessScope(
 export async function tryDiscoverMetadata(
   baseUrl: string,
   userAgent: string,
+  signal?: AbortSignal,
 ): Promise<OAuthServerMetadata | null> {
-  const metadata = await fetchMetadata(baseUrl, userAgent);
-  if (metadata === null || !(await grantsFullAccessScope(metadata, baseUrl, userAgent))) {
+  const metadata = await fetchMetadata(baseUrl, userAgent, signal);
+  if (metadata === null || !(await grantsFullAccessScope(metadata, baseUrl, userAgent, signal))) {
     return null;
   }
   return pinEndpoints(metadata, baseUrl);
@@ -261,8 +281,9 @@ export async function tryDiscoverMetadata(
 export async function discoverLoginMetadata(
   baseUrl: string,
   userAgent: string,
+  signal?: AbortSignal,
 ): Promise<OAuthServerMetadata> {
-  const metadata = await tryDiscoverMetadata(baseUrl, userAgent);
+  const metadata = await tryDiscoverMetadata(baseUrl, userAgent, signal);
   if (metadata === null) {
     throw new ConfigError(OAUTH_UNSUPPORTED_MESSAGE);
   }
@@ -282,7 +303,7 @@ export async function discoverMetadata(
 }
 
 export async function registerClient(input: ClientRegistration): Promise<RegisteredClient> {
-  const response = await oauthFetch({
+  const request: OAuthRequest = {
     url: input.registrationEndpoint,
     method: "POST",
     userAgent: input.userAgent,
@@ -296,11 +317,13 @@ export async function registerClient(input: ClientRegistration): Promise<Registe
       token_endpoint_auth_method: "none",
       scope: OAUTH_SCOPE,
     }),
-  });
+    signal: input.signal,
+  };
+  const response = await oauthFetch(request);
   if (!response.ok) {
-    throw await failure(response, "OAuth client registration", "POST", input.registrationEndpoint);
+    throw await failure(response, "OAuth client registration", request);
   }
-  return readJson(response, RegisteredClient, "OAuth client registration");
+  return readJson(response, RegisteredClient, "OAuth client registration", input.signal);
 }
 
 export function exchangeCode(input: CodeExchange): Promise<OAuthTokens> {
@@ -316,6 +339,7 @@ export function exchangeCode(input: CodeExchange): Promise<OAuthTokens> {
     },
     OAuthTokens,
     "OAuth token exchange",
+    input.signal,
   );
 }
 
@@ -334,15 +358,16 @@ export function refreshTokens(input: TokenRefresh): Promise<OAuthTokens> {
 }
 
 export async function revokeToken(input: TokenRevocation): Promise<void> {
-  const response = await oauthFetch({
+  const request: OAuthRequest = {
     url: input.revocationEndpoint,
     method: "POST",
     userAgent: input.userAgent,
     headers: { "content-type": FORM_CONTENT_TYPE },
     body: new URLSearchParams({ token: input.token, client_id: input.clientId }),
-  });
+  };
+  const response = await oauthFetch(request);
   if (!response.ok) {
-    throw await failure(response, "OAuth token revocation", "POST", input.revocationEndpoint);
+    throw await failure(response, "OAuth token revocation", request);
   }
   // Drain the (ignored) success body so the socket is released and can't delay process exit.
   await response.body?.cancel().catch(() => undefined);

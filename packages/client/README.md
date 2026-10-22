@@ -255,7 +255,7 @@ A 400 refusing a remote-sync move carries the content behind it: `nonRemoteSynce
 The client registers no signal handler and reads no process state, so cancellation reaches it as an
 `AbortSignal` the host owns. Three places take one and they compose: `ClientOptions.signal` cancels
 every request a client makes, `RequestOptions.signal` cancels a single request, and
-`PollOptions.signal` stops a wait loop. Each is folded together with the request timeout, so whichever
+`PollOptions.signal` stops a wait loop. `OAuthLoginInput.signal` cancels a login, which runs before there is a client (see Auth). Each is folded together with the request timeout, so whichever
 fires first ends the work. A method's first call may also wait on the client's one shared server probe; the method's `signal` ends that caller's wait, while the probe itself belongs to the client and is cancelled only by `ClientOptions.signal`, so a later call still finds it settled.
 
 ```ts
@@ -423,7 +423,9 @@ an `OAuthCredential`. `refreshOAuthCredential` exchanges the rotating refresh to
 revocation endpoint. Types: `Credential` (the `ApiKeyCredential | OAuthCredential` union),
 `OAuthLoginInput`, `OAuthLoginDeps`.
 
-Unless the caller passes `metadata` from `tryDiscoverMetadata`, which makes the same check, `oauthLogin` checks that the server grants the full-access scope the REST API needs: a discovery document that lists it in `scopes_supported` settles it (Metabase v62 from the patch that introduced the scope, and v63), and otherwise the server's version does (`oauthFullAccessScopeUnadvertised`), because v64 and newer grant the scope without advertising it; a server that cannot is refused with a `ConfigError`.
+`OAuthLoginInput.signal` cancels a login at any point: before it starts, during discovery, client registration or the token exchange, or while it waits for the browser's redirect. The request in flight is cancelled, the loopback callback port is freed at once, and the login rejects with the signal's reason when that is a `MetabaseError`, else with an `AbortError` carrying its message.
+
+Unless the caller passes `metadata` from `tryDiscoverMetadata`, which makes the same check, `oauthLogin` checks that the server grants the full-access scope the REST API needs: a discovery document that lists it in `scopes_supported` settles it (Metabase v62 from the patch that introduced the scope, and v63), and otherwise the server's version does (`oauthFullAccessScopeUnadvertised`), because v64 and newer grant the scope without advertising it; a server that cannot is refused with a `ConfigError`. `tryDiscoverMetadata` takes a signal as well.
 
 ### Versions and requirements
 
