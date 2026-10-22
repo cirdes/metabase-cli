@@ -48,7 +48,7 @@ Any list whose options come from a question — an id shown as a name, a categor
 
 ## Date ranges
 
-A preset bar lists the durations, then All time, then Custom last — leave Custom out only if the user asked for fixed presets, or the number is a distinct count, average or ratio, which offers whole periods only (`data-app-data`). Every option ends in the same `[start, end]` range (All time is `[null, null]`), so one `between` filter serves them all. Custom is `DateRangePopover` around your own trigger, or `DateRangeCalendar` inline, both from `@metabase/embedding-sdk-react/data-app`. No date-picker library and no `<input type="date">` for a range.
+A preset bar lists the durations, then All time, then Custom last — leave Custom out only if the user asked for fixed presets, or the number is non-additive, which offers only whole-bucket presets (`data-app-data`, _Runtime clauses_). Every option ends in the same `[start, end]` range (All time is `[null, null]`), so one `between` filter serves them all. Custom is `DateRangePopover` around your own trigger, or `DateRangeCalendar` inline, both from `@metabase/embedding-sdk-react/data-app`. No date-picker library and no `<input type="date">` for a range.
 
 ```tsx
 import { DateRangePopover, filter, useDateFormatter } from "@metabase/embedding-sdk-react/data-app";
@@ -84,4 +84,4 @@ const lastMonths = (n: number): [string, string] => {
 
 ## Check
 
-For every visible filter: All runs the unfiltered question; its options come from a question; each option changes every panel the contract says it reaches, and no other; a preset bar ends with Custom; and no scope has two date controls. Search the filter controls for `<select` and `type="date"` — an action form keeps its date inputs. Then build and publish (`data-app`, _Build and publish_).
+For every visible filter: All runs the unfiltered question; its options come from a question; each option changes every panel the contract says it reaches, and no other; a preset bar ends with Custom unless the number is non-additive; and no scope has two date controls. Search the filter controls for `<select` and `type="date"` — an action form keeps its date inputs. Then build and publish (`data-app`, _Build and publish_).
