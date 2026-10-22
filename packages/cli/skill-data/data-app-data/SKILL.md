@@ -15,11 +15,11 @@ A data app runs only the questions and actions in **the app's collection** (`dat
 
 ## Sources: the semantic layer only
 
-An app reads only what the user curated in the Library. These are hard rules:
+An app reads only what the user curated in the Library. Metabase refuses a question in the app's collection that breaks these rules:
 
 - **Tables published to the Library**, and nothing else: `mb table list --published-only --json`. That covers the question's source table, every join, and every table reached through a foreign key column.
-- **Metrics in the Library's Metrics collection** (its id is in `mb library get`; list it with `mb collection items <id> --json`), and the segments and measures of published tables (`mb segment list`, `mb measure list`). Prefer one that matches the concept over rebuilding it with filters and thresholds of your own.
-- **Other questions in the app's collection**, as a source. Never a question, model or metric from anywhere else.
+- **Metrics in the Library's Metrics collection**, as aggregations (its id is in `mb library get`; list it with `mb collection items <id> --json`), and the segments and measures of published tables (`mb segment list`, `mb measure list`). Prefer one that matches the concept over rebuilding it with filters and thresholds of your own.
+- **No other question as a source** — not a question in the app's collection, a model or a metric. Every question starts from a published table.
 - **MBQL only**, never native SQL.
 
 When the app needs a table or metric the Library lacks, stop: name what's missing and ask the user to publish the table or move the metric into the Library. Don't publish it yourself unless the user says to, and never work around the gap with an unpublished table, a copy of the data, or SQL.
