@@ -45,7 +45,7 @@ const TransformCheckpointStrategy = z
   })
   .loose();
 
-export const TransformSourceTableEntry = z
+export const TransformSourceTableEntryInput = z
   .object({
     alias: z.string(),
     database_id: z.number().int(),
@@ -54,6 +54,13 @@ export const TransformSourceTableEntry = z
     table_id: z.number().int().nullable().optional(),
   })
   .loose();
+export type TransformSourceTableEntryInput = z.infer<typeof TransformSourceTableEntryInput>;
+
+// The server requires only `alias`, and keeps an entry whose table or database is gone without the rest.
+export const TransformSourceTableEntry = TransformSourceTableEntryInput.extend({
+  database_id: z.number().int().nullable().optional(),
+  schema: z.string().nullable().optional(),
+});
 export type TransformSourceTableEntry = z.infer<typeof TransformSourceTableEntry>;
 
 const TransformQuerySource = z
@@ -75,6 +82,15 @@ const TransformPythonSource = z
   .loose();
 
 const TransformSource = z.discriminatedUnion("type", [TransformQuerySource, TransformPythonSource]);
+
+const TransformPythonSourceInput = TransformPythonSource.extend({
+  "source-tables": z.array(TransformSourceTableEntryInput),
+});
+
+const TransformSourceInput = z.discriminatedUnion("type", [
+  TransformQuerySource,
+  TransformPythonSourceInput,
+]);
 
 const TransformAppendStrategy = z.object({ type: z.literal("append") }).loose();
 
@@ -310,7 +326,7 @@ export const TransformCreateInput = z
   .object({
     name: z.string().min(1),
     description: z.string().nullable().optional(),
-    source: TransformSource,
+    source: TransformSourceInput,
     target: TransformTarget,
     run_trigger: TransformRunTrigger.optional(),
     tag_ids: z.array(z.number().int().positive()).optional(),
@@ -325,7 +341,7 @@ export const TransformUpdateInput = z
   .object({
     name: z.string().min(1).optional(),
     description: z.string().nullable().optional(),
-    source: TransformSource.optional(),
+    source: TransformSourceInput.optional(),
     target: TransformTarget.optional(),
     run_trigger: TransformRunTrigger.optional(),
     tag_ids: z.array(z.number().int().positive()).optional(),

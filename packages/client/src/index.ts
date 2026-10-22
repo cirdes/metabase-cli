@@ -488,6 +488,7 @@ export {
   TransformRunSummarySortColumn,
   TransformRunSummaryType,
   TransformSourceTableEntry,
+  TransformSourceTableEntryInput,
   TransformTarget,
   TransformUpdateInput,
 } from "./domain/transform";

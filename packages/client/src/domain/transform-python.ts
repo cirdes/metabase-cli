@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { TransformSourceTableEntry } from "./transform";
+import { TransformSourceTableEntryInput } from "./transform";
 
 // The one library Metabase serves is `common.py`, the user module every Python transform can
 // import; the path is a key, not a file system location.
@@ -26,7 +26,7 @@ const TestRunRowLimit = z.number().int().min(TEST_RUN_ROW_LIMIT.min).max(TEST_RU
 export const PythonTestRunInput = z
   .object({
     code: z.string(),
-    source_tables: z.array(TransformSourceTableEntry).min(1),
+    source_tables: z.array(TransformSourceTableEntryInput).min(1),
     output_row_limit: TestRunRowLimit.optional(),
     per_input_row_limit: TestRunRowLimit.optional(),
   })

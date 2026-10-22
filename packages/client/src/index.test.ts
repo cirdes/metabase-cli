@@ -61,6 +61,7 @@ import {
   TransformJobCreateInput,
   TransformJobUpdateInput,
   TransformLensQueryInput,
+  TransformSourceTableEntryInput,
   TransformTagCreateInput,
   TransformTagUpdateInput,
   TransformTestCreateInput,
@@ -150,6 +151,9 @@ const writePath = {
   TransformJobCreateInput: pin<TransformJobCreateInput>(TransformJobCreateInput),
   TransformJobUpdateInput: pin<TransformJobUpdateInput>(TransformJobUpdateInput),
   TransformLensQueryInput: pin<TransformLensQueryInput>(TransformLensQueryInput),
+  TransformSourceTableEntryInput: pin<TransformSourceTableEntryInput>(
+    TransformSourceTableEntryInput,
+  ),
   TransformTagCreateInput: pin<TransformTagCreateInput>(TransformTagCreateInput),
   TransformTagUpdateInput: pin<TransformTagUpdateInput>(TransformTagUpdateInput),
   TransformTestCreateInput: pin<TransformTestCreateInput>(TransformTestCreateInput),
