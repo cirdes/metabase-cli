@@ -51,9 +51,8 @@ export function dataActionResource(transport: Transport) {
 
   /**
    * Update a data action by id, patching only the fields the body carries. A server whose data
-   * actions have no collection never moves the action: a point release that strips undeclared body
-   * keys drops `collection_id` and answers as if it had, an earlier one writes it to the action's
-   * type table, which has no such column, and fails. So the field is refused there before the wire.
+   * actions have no collection never moves the action, and from 58.31 it strips the undeclared key and
+   * answers as if it had. So the field is refused there before the wire.
    */
   async function update(
     id: number,

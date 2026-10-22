@@ -81,7 +81,7 @@ export type UnreadableCard = z.infer<typeof UnreadableCard>;
  * A dashcard as a dashboard read or write returns it, with its card whole in `card`. An action
  * button bound to a model carries the model there and the action in `action_id`. A dashcard bound to
  * no card (a text, heading, link, iframe or placeholder dashcard, or an action button bound to no
- * model, which `visualization_settings.virtual_card` names) has `card_id` and `card` both `null`.
+ * model, which `visualization_settings.virtual_card` names) has `card_id` `null`, and its `card` reads as `null`.
  */
 export const DashcardDetail = Dashcard.extend({
   action_id: z.number().int().nullable(),
@@ -200,8 +200,9 @@ const DashboardTabWrite = z
   })
   .loose();
 
-// The six keys every supported server declares and reads. Closed, and parsed before the request,
-// because the server drops any other key unread: a layout goes through an update instead.
+// The six keys every supported server reads. Any other key is dropped before the request, as the
+// server drops it, so a body read back from a dashboard still creates one; a layout goes through an
+// update instead.
 export const DashboardCreateInput = z
   .object({
     name: NonBlankText,
@@ -211,7 +212,7 @@ export const DashboardCreateInput = z
     collection_id: z.number().int().positive().nullable().optional(),
     collection_position: z.number().int().positive().nullable().optional(),
   })
-  .strict();
+  .strip();
 export type DashboardCreateInput = z.infer<typeof DashboardCreateInput>;
 
 export const DashboardLayoutInput = z

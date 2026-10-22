@@ -97,8 +97,8 @@ export function dashboardResource(transport: Transport) {
 
   /**
    * Create a dashboard. The endpoint accepts no dashcards or tabs — a follow-up `update` is what
-   * puts content on a fresh dashboard. A key `DashboardCreateInput` does not declare is refused
-   * before the request.
+   * puts content on a fresh dashboard. A key `DashboardCreateInput` does not declare is dropped
+   * before the request, as the server drops it.
    */
   async function create(
     params: DashboardCreateInput,

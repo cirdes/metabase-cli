@@ -4,7 +4,7 @@ Notable changes to `@metabase/client`.
 
 ## 0.1.1
 
-- `DashboardCreateInput` holds only the fields `POST /api/dashboard` reads, and is strict, and `dashboard.create` parses its body against it. A layout or any other key passed to `dashboard.create` is refused before the request rather than dropped unread by the server; send a layout as a `DashboardLayoutInput` through `dashboard.update`. A blank `name` is refused too, as the server does.
+- `DashboardCreateInput` holds only the fields `POST /api/dashboard` reads, so a layout passed to `dashboard.create` no longer compiles; send it as a `DashboardLayoutInput` through `dashboard.update`. At run time `dashboard.create` drops any other key before the request, as the server does, and refuses a blank `name`, as the server does.
 - `DashboardLayoutInput` and `DatabaseUpdateInput` are on the barrel.
 - `@metabase/client/json-pointer` exports `unescapeJsonPointerSegment`, the inverse of `escapeJsonPointerSegment`.
 - `@metabase/client/version/input-gates` exports the input gates recorded on feature-gated body fields, with `gateTriggered` and `inputGatesOf`, and `featureAvailability` says which servers hold a feature.
