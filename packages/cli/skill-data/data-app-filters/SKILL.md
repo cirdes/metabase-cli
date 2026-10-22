@@ -19,6 +19,7 @@ Before any control, write one row per filter: the question that gives its option
 | Plan      | orders broken out by plan  | plan text    | orders                 | revenue, stock |
 
 - A filter in the page's global bar changes every panel that can take it. One that can't reach a panel is scoped to its section, visibly, or left out. A KPI and its detail table about the same thing take the same filters, unless the UI says why not.
+- A KPI on an aggregated question shows one complete bucket (`data-app-data`, _Runtime clauses_): it gets its own control of one-bucket presets starting at the last complete bucket, never All time, rather than a shared bar's ranges.
 - One date control per scope. Never a global date range beside a page-specific date where one of the two does nothing; a page whose cards use another date column gets one control for that column.
 - Build each panel's clauses from its own question's columns, inline at its hook call. Never reuse an array built for another question.
 

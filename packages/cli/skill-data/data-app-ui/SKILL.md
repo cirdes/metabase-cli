@@ -82,13 +82,13 @@ Ask "can Metabase draw this at all?", never "which looks closer to the design?" 
 
 - **Yes** — bar, line, area, combo, row, pie, scalar, smartscalar, gauge, progress, funnel, scatter, waterfall, boxplot, sankey, pivot, map, tables: render it with `useMetabaseQueryObject` and `StaticQuestion` (`data-app-data`). It keeps the instance's formatting, tooltips, theming and drill-through. Styling is never a reason to draw it yourself.
 - **No**, or the user asked for a custom one — scorecards, timelines, calendar grids, one visual from several queries: draw it from `useMetabaseQuery` rows, with SVG or a chart library the app already has.
-- A KPI is `scalar`, `smartscalar`, `gauge` or `progress`; put what Metabase doesn't draw (a caption, stars) beside it.
+- A KPI is `scalar`, `smartscalar`, `gauge` or `progress` — on a question filtered at runtime to one bucket, `scalar` (a `smartscalar` loses its comparison); put what Metabase doesn't draw (a caption, stars) beside it.
 - `InteractiveQuestion`: pass `isSaveEnabled={false}`, and `title={false}` in a panel with its own heading. Children replace its layout: `<InteractiveQuestion card={card}><InteractiveQuestion.QuestionVisualization height={360} /></InteractiveQuestion>` is the chart alone.
 
 **Visualization settings.** Add `visualizationSettings` only for a change the user asked for. Their keys are a question's `visualization_settings` keys — the `visualization` skill lists them — and the installed types decide what's legal: `rg -n "<key>|declare type .*VisualizationSettings" node_modules/@metabase/embedding-sdk-react/dist/index.d.ts`, never the whole file, never from memory. Keep them few: keys such as `graph.dimensions`, `pie.metric` and `column_settings` name result columns and break when the question changes.
 
 - A `table` with two breakouts and one aggregation renders as a pivot when a breakout has at most 16 values; `{ "table.pivot": false }` keeps one row per group.
-- A scalar shows the first column: with a key column first, point it at the number with `{ "scalar.field": "avg_rating" }`.
+- A scalar shows the first column: with a key or breakout column first (a date on a month question), point it at the number with `{ "scalar.field": "avg_rating" }`.
 - A header: `column_settings: { '["name","approvers"]': { column_title: "Approvers" } }`.
 
 ## Pages
