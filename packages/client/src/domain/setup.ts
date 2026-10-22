@@ -4,7 +4,8 @@ const SetupUserInput = z
   .object({
     first_name: z.string().min(1).nullable().optional(),
     last_name: z.string().min(1).nullable().optional(),
-    email: z.email(),
+    // The server checks the address with its own pattern, which admits some a stricter check refuses.
+    email: z.string(),
     password: z
       .string()
       .min(1)

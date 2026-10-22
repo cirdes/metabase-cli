@@ -16,6 +16,7 @@ Notable changes to `@metabase/client`.
 - `notification.get`, and the `update`, `archive` and `send` that read through it, refuse a dashboard subscription with the "not a question alert" `ConfigError` instead of a shape error on its payload. `AnyNotification` is the reader: a question alert in full, any other type read no further than `id` and `payload_type`. `CARD_PAYLOAD_TYPE` has the literal type `"notification/card"`.
 - `CurrentUser.email` is any string, so `user.current` reads an account whose address Metabase accepts and a stricter email check refuses, such as one with `!` or `/` in the local part or a digit or one-letter top-level domain.
 - `transform.create`, `transform.update` and `transformPython.testRun` send a Python source's tables keyed by alias to Metabase 58 and 59, which read no list: a transform entry as its reference less `alias`, or as the bare table id when it names its table by id alone, and a test-run entry as its table id. `TransformSourceTableEntryInput` also takes that id-only entry, `{ alias, table_id }` with `database_id`, `schema` and `table` absent or `null`, so a transform read from 59 updates back unchanged. `pythonTestRun` holds from 58 on a server licensed for Python transforms.
+- `SetupInput.user.email` is any string, so `setup.create` hands Metabase an address it accepts and a stricter email check refuses, and the server judges it.
 
 ## 0.1.0
 
