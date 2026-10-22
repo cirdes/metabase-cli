@@ -67,7 +67,7 @@ export const FEATURE_RULES = {
   documentCopy: { since: 59 },
   transformInspector: { since: 60, tokenFeature: "transforms-python" },
   pythonLibrary: { since: 58, tokenFeature: "transforms-python" },
-  pythonTestRun: { since: 60, tokenFeature: "transforms-python" },
+  pythonTestRun: { since: 58, tokenFeature: "transforms-python" },
   sourceReplacement: { since: 60, tokenFeature: "dependencies" },
   metricDefinitionQuery: { since: 60 },
   metricDimensionListing: { since: 64 },

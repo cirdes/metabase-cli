@@ -45,7 +45,7 @@ const TransformCheckpointStrategy = z
   })
   .loose();
 
-export const TransformSourceTableEntryInput = z
+const TransformSourceTableRefInput = z
   .object({
     alias: z.string(),
     database_id: z.number().int(),
@@ -54,12 +54,36 @@ export const TransformSourceTableEntryInput = z
     table_id: z.number().int().nullable().optional(),
   })
   .loose();
+
+// An entry naming its table by id alone, as a server keying the tables by alias holds one and the
+// readers below answer it, so a transform read from that server can be written back to it.
+const TransformSourceTableIdInput = z
+  .object({
+    alias: z.string(),
+    table_id: z.number().int(),
+    database_id: z.null().optional(),
+    schema: z.null().optional(),
+    table: z.null().optional(),
+  })
+  .loose();
+type TransformSourceTableIdInput = z.infer<typeof TransformSourceTableIdInput>;
+
+export const TransformSourceTableEntryInput = z.union([
+  TransformSourceTableRefInput,
+  TransformSourceTableIdInput,
+]);
 export type TransformSourceTableEntryInput = z.infer<typeof TransformSourceTableEntryInput>;
+
+function namesTableByIdAlone(
+  entry: TransformSourceTableEntryInput,
+): entry is TransformSourceTableIdInput {
+  return typeof entry.database_id !== "number";
+}
 
 // The server requires only `alias`, and keeps an entry whose table or database is gone without the
 // rest. `database_id`, `schema` and `table` are null where a server keying the tables by alias names
 // a table by its id alone, and so cannot say.
-export const TransformSourceTableEntry = TransformSourceTableEntryInput.extend({
+export const TransformSourceTableEntry = TransformSourceTableRefInput.extend({
   database_id: z.number().int().nullable().optional(),
   schema: z.string().nullable().optional(),
   table: z.string().nullable().optional(),
@@ -140,6 +164,30 @@ const TransformSourceInput = z.discriminatedUnion("type", [
   TransformQuerySource,
   TransformPythonSourceInput,
 ]);
+type TransformSourceInput = z.infer<typeof TransformSourceInput>;
+
+// Inverts what a server without the list reads: the alias becomes the key, and the value is the bare
+// table id an entry naming its table by id alone was read from, else the reference less its alias.
+function toAliasMapValue(entry: TransformSourceTableEntryInput) {
+  const { alias: _alias, ...reference } = entry;
+  return namesTableByIdAlone(entry) ? entry.table_id : reference;
+}
+
+/** Each entry keyed by its alias, its value chosen by `value`, as a server without the list reads it. */
+export function keyedByAlias<T>(
+  entries: readonly TransformSourceTableEntryInput[],
+  value: (entry: TransformSourceTableEntryInput) => T,
+): Record<string, T> {
+  return Object.fromEntries(entries.map((entry) => [entry.alias, value(entry)]));
+}
+
+/** A transform body's `source` as a server with `features` reads it. */
+export function transformSourceBody(source: TransformSourceInput, features: Features) {
+  if (features.transformSourceTablesAsList || source.type !== "python") {
+    return source;
+  }
+  return { ...source, "source-tables": keyedByAlias(source["source-tables"], toAliasMapValue) };
+}
 
 const TransformAppendStrategy = z.object({ type: z.literal("append") }).loose();
 
