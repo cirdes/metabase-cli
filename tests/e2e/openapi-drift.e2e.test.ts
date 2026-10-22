@@ -11,7 +11,7 @@ import { type MethodKey, methodRequirements } from "@metabase/client/version/req
 
 import { USER_AGENT } from "../../packages/cli/src/core/user-agent";
 import { readBootstrap } from "./bootstrap-data";
-import { type PairedBody, scanBodyMethods } from "./body-routes";
+import { type PairedBody, scanBodyMethods } from "../../scripts/body-routes";
 import { requireServer, serverHas } from "./server-gate";
 
 const OPENAPI_SPEC_PATH = "/api/docs/openapi.json";

@@ -4,7 +4,7 @@ import {
   Dashboard,
   DashboardCopy,
   type DashboardCopyInput,
-  type DashboardCreateInput,
+  DashboardCreateInput,
   type DashboardDetail,
   dashboardDetailSchema,
   type DashboardListFilter,
@@ -22,6 +22,7 @@ import type { RequestOptions, Transport } from "../http/transport";
 import type { ListResult } from "../list";
 
 import { cardResource } from "./card";
+import { parseRequestBody } from "./request-body";
 
 // `GET /api/dashboard` answers a bare array rather than a `{ data, total }` envelope, so the count a
 // caller reads off `ListResult` is the array's own length and the server reports none.
@@ -96,16 +97,18 @@ export function dashboardResource(transport: Transport) {
 
   /**
    * Create a dashboard. The endpoint accepts no dashcards or tabs — a follow-up `update` is what
-   * puts content on a fresh dashboard.
+   * puts content on a fresh dashboard. A key `DashboardCreateInput` does not declare is refused
+   * before the request.
    */
   async function create(
     params: DashboardCreateInput,
     options: RequestOptions = {},
   ): Promise<Dashboard> {
+    const body = parseRequestBody(DashboardCreateInput, params, "dashboard");
     return transport.requestParsed(Dashboard, "/api/dashboard", {
       ...options,
       method: "POST",
-      body: params,
+      body,
     });
   }
 

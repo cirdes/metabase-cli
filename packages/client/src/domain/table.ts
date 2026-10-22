@@ -117,6 +117,14 @@ export const DATA_LAYER_MEDALLION_GATE: InputGate = {
   when: { kind: "values", values: TableDataLayerMedallion.options },
 };
 
+// A measure or segment create: a server holding the feature reads the table off the definition and
+// its closed body drops `table_id`; one without it requires the key, so every server is sent it.
+export const TABLE_FROM_DEFINITION_GATE: InputGate = {
+  feature: "tableFromDefinition",
+  effect: "droppedBy",
+  when: { kind: "present" },
+};
+
 export const DATA_AUTHORITY_WITHDRAWAL_GATE: InputGate = {
   feature: "tableUserValueWithdrawal",
   effect: "needs",

@@ -196,9 +196,9 @@ describe("gate notes", () => {
     );
   });
 
-  it("says the cached server rejects a field it lacks the feature for", async () => {
+  it("says the cached server lacks the feature a field needs", async () => {
     expect(await inputNote(["field", "update"], serverAt(63), "data_sensitivity")).toBe(
-      `${SENSITIVITY_NOTE}; this server rejects it`,
+      `${SENSITIVITY_NOTE}; this server lacks it`,
     );
   });
 
@@ -214,9 +214,9 @@ describe("gate notes", () => {
     );
   });
 
-  it("says the cached server rejects a field its token does not grant", async () => {
+  it("says the cached server lacks a feature its token does not grant", async () => {
     expect(await inputNote(["subscription", "create"], serverAt(64), "parameters")).toBe(
-      "needs dashboardSubscriptionFilters (token dashboard_subscription_filters) when non-empty; this server rejects it",
+      "needs dashboardSubscriptionFilters (token dashboard_subscription_filters) when non-empty; this server lacks it",
     );
   });
 

@@ -102,7 +102,7 @@ describe("--help --json e2e", () => {
     expect(entry.requires).toBeNull();
   });
 
-  it("emits the full entry for a leaf command, leaving its output schema to mb schema", async () => {
+  it("emits the full entry for a leaf command, leaving its schemas to mb schema", async () => {
     const result = await runCli({
       args: ["card", "query", "--help", "--json"],
       configHome: await makeIsolatedConfigHome(),
@@ -113,17 +113,5 @@ describe("--help --json e2e", () => {
     const entry = parseJson(result.stdout, z.unknown(), { source: "--help --json" });
     const cardQuery = await resolveCommandPath(main, ["card", "query"]);
     expect(entry).toEqual(await buildHelpEntry(cardQuery, ["card", "query"]));
-  });
-
-  it("names the command that prints query's body schema instead of inlining it", async () => {
-    const result = await runCli({
-      args: ["query", "--help", "--json"],
-      configHome: await makeIsolatedConfigHome(),
-    });
-
-    expect(result.exitCode, result.stderr).toBe(0);
-
-    const entry = parseJson(result.stdout, CommandHelpEntry, { source: "--help --json" });
-    expect(entry.inputSchema).toEqual({ command: "mb schema query" });
   });
 });

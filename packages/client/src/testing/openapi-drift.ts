@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { HttpMethod } from "../http/transport";
+import { unescapeJsonPointerSegment } from "../json-pointer";
 import type { FeatureName } from "../version/features";
 import { inputGatesOf } from "../version/input-gate-registry";
 import type { InputGate } from "../version/input-gates";
@@ -247,7 +248,7 @@ function componentAt(ref: string, schemas: OpenApiBodies["components"]["schemas"
   if (!ref.startsWith(COMPONENT_REF_PREFIX)) {
     throw new Error(`OpenAPI $ref ${ref} points outside components.schemas`);
   }
-  const name = ref.slice(COMPONENT_REF_PREFIX.length).replaceAll("~1", "/").replaceAll("~0", "~");
+  const name = unescapeJsonPointerSegment(ref.slice(COMPONENT_REF_PREFIX.length));
   const component = schemas[name];
   if (component === undefined) {
     throw new Error(`OpenAPI $ref ${ref} names no component schema`);

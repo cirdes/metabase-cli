@@ -2,23 +2,13 @@ import { defineCommand } from "citty";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { CardCreateInput } from "@metabase/client/domain/card";
 import { type MethodKey, methodRequirements } from "@metabase/client/version/requirements";
 
 import { defineMetabaseCommand } from "../commands/runtime";
-import { CARD_DATASET_QUERY } from "../commands/validate-query";
 import main from "../main";
 import { getMetabaseAugment } from "./command-augment";
-import {
-  BodyJsonSchema,
-  buildHelpEntry,
-  buildHelpIndex,
-  embeddedQueryNotes,
-  InputSchemaPointer,
-  resolveCommandPath,
-} from "./command-help";
+import { buildHelpEntry, buildHelpIndex, resolveCommandPath } from "./command-help";
 import type { CommandHelpEntry } from "./command-help";
-import { notePaths, toJsonSchema } from "./json-schema";
 
 describe("buildHelpIndex", () => {
   it("walks lazy subCommands into full-path index entries", async () => {
@@ -154,7 +144,7 @@ describe("buildHelpEntry", () => {
     ]);
   });
 
-  it("forwards examples and leaves the output schema to mb schema for metabase commands", async () => {
+  it("forwards examples and leaves both schemas to mb schema for metabase commands", async () => {
     const leaf = defineMetabaseCommand({
       meta: { name: "leaf", description: "leaf" },
       requires: [],
@@ -174,73 +164,8 @@ describe("buildHelpEntry", () => {
       skills: [],
       examples: ["root leaf --json"],
       args: [],
-      inputSchema: null,
       requires: { methods: [], features: [] },
     });
-  });
-
-  it("emits the input-side JSON Schema of inputSchema, where a stripping object takes extra keys", async () => {
-    const leaf = defineMetabaseCommand({
-      meta: { name: "create", description: "create" },
-      requires: [],
-      args: {},
-      inputSchema: z.object({ name: z.string() }),
-      run() {
-        return;
-      },
-    });
-
-    const entry = await buildHelpEntry(leaf, ["create"]);
-
-    expect(entry.inputSchema).toEqual({
-      $schema: "https://json-schema.org/draft/2020-12/schema",
-      type: "object",
-      properties: {
-        name: { type: "string" },
-      },
-      required: ["name"],
-    });
-  });
-
-  it("emits card create's Zod body as its input-side JSON Schema, noting its embedded query", async () => {
-    const path = ["card", "create"];
-
-    const entry = await buildHelpEntry(await resolveCommandPath(main, path), path);
-
-    expect(entry.inputSchema).toEqual(
-      notePaths(
-        toJsonSchema(CardCreateInput, { io: "input" }),
-        embeddedQueryNotes([CARD_DATASET_QUERY]),
-      ),
-    );
-  });
-
-  it("points query's body at mb schema rather than inlining the MBQL documents", async () => {
-    const path = ["query"];
-
-    const entry = await buildHelpEntry(await resolveCommandPath(main, path), path);
-
-    expect(entry.inputSchema).toEqual({ command: "mb schema query" });
-  });
-
-  it("keeps a schema pointer and a body JSON Schema from parsing as each other", () => {
-    const pointer = { command: "mb schema query" };
-    const schema = toJsonSchema(CardCreateInput, { io: "input" });
-
-    expect({
-      pointerAsSchema: BodyJsonSchema.safeParse(pointer).success,
-      schemaAsPointer: InputSchemaPointer.safeParse(schema).success,
-    }).toEqual({ pointerAsSchema: false, schemaAsPointer: false });
-  });
-
-  it("leaves a defaulted body field out of the input schema's required list", async () => {
-    const path = ["alert", "create"];
-
-    const entry = await buildHelpEntry(await resolveCommandPath(main, path), path);
-
-    const { required } = z.object({ required: z.array(z.string()) }).parse(entry.inputSchema);
-
-    expect(required).toEqual(["payload", "subscriptions", "handlers"]);
   });
 
   it("forwards details for metabase commands that declare it and omits the key otherwise", async () => {
@@ -312,7 +237,6 @@ describe("buildHelpEntry", () => {
       skills: [],
       examples: [],
       args: [],
-      inputSchema: null,
       requires: null,
     });
   });
@@ -334,7 +258,6 @@ describe("buildHelpEntry", () => {
       skills: [],
       examples: [],
       args: [],
-      inputSchema: null,
       requires: null,
     });
   });
@@ -640,8 +563,14 @@ describe("command tree contract", () => {
   it("declares an input schema on every command that accepts a JSON body", async () => {
     const entries = await allEntries();
     const acceptingBody = entries.filter((entry) => entry.args.some((arg) => arg.name === "body"));
-    const withoutInputSchema = acceptingBody
-      .filter((entry) => entry.inputSchema === null)
+    const declared = await Promise.all(
+      acceptingBody.map(async ({ command }) => {
+        const augment = getMetabaseAugment(await resolveCommandPath(main, command.split(" ")));
+        return { command, declared: augment !== null && augment.input !== null };
+      }),
+    );
+    const withoutInputSchema = declared
+      .filter((entry) => !entry.declared)
       .map((entry) => entry.command);
     expect(acceptingBody.map((entry) => entry.command)).toEqual(BODY_COMMANDS);
     expect(withoutInputSchema).toEqual([]);

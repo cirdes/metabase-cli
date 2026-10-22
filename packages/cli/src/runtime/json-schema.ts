@@ -1,5 +1,7 @@
 import { z, type ZodType } from "zod";
 
+import { unescapeJsonPointerSegment } from "@metabase/client/json-pointer";
+
 type JsonSchema = z.core.JSONSchema.BaseSchema;
 type SubSchema = z.core.JSONSchema._JSONSchema;
 type Io = "input" | "output";
@@ -173,7 +175,7 @@ function noteThroughRef(
   if (!ref.startsWith(LOCAL_DEFS_PREFIX)) {
     throw new Error(`cannot note "${path.join(".")}" through $ref "${ref}"`);
   }
-  const target = defs?.[decodePointer(ref.slice(LOCAL_DEFS_PREFIX.length))];
+  const target = defs?.[unescapeJsonPointerSegment(ref.slice(LOCAL_DEFS_PREFIX.length))];
   if (target === undefined) {
     throw new Error(`$ref "${ref}" points at no $defs entry`);
   }
@@ -183,8 +185,4 @@ function noteThroughRef(
   }
   const { $ref: _inlined, ...siblings } = schema;
   return { ...siblings, allOf: [...(siblings.allOf ?? []), notedTarget] };
-}
-
-function decodePointer(segment: string): string {
-  return segment.replaceAll("~1", "/").replaceAll("~0", "~");
 }

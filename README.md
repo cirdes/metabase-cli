@@ -2527,7 +2527,7 @@ mb schema query                       # the MBQL 5 query schema
 
 A body is read as input, so a defaulted field is not `required`. A schema that recurs across commands, such as a dashboard parameter, is declared once under `$defs`, keyed by the client's name for it. A tuple keeps its arity (`minItems`, and `items: false` when it takes no more), and a refinement the JSON Schema cannot express is noted in the `description` as `refined: <message>`.
 
-A body field only some Metabase servers take names in its `description` the feature it needs and the servers that hold it: `needs fieldDataSensitivity (v64+)`, `needs tableUserValueWithdrawal (v64+) for null`, `needs dashboardSubscriptionFilters (token dashboard_subscription_filters) when non-empty`. A value that a server holding a feature takes as something else reads `read differently under tableDataLayerTiers (v59+) for "gold", …`, and a field such a server drops unread `dropped by tableFromDefinition (v64+)`. The notes are judged against the server the profile last probed, read from its cache with no request: `; this server rejects it` follows a field that server refuses, `; this server reads it differently` a value it would take as another, and `; this server ignores it` a field it drops. With no cached probe, or with `--url` naming a server the profile was not probed against, the notes stand alone. The server still decides what it accepts. An output carries no feature notes.
+A body field only some Metabase servers take names in its `description` the feature it needs and the servers that hold it: `needs fieldDataSensitivity (v64+)`, `needs tableUserValueWithdrawal (v64+) for null`, `needs dashboardSubscriptionFilters (token dashboard_subscription_filters) when non-empty`. A value that a server holding a feature takes as something else reads `read differently under tableDataLayerTiers (v59+) for "gold", …`, and a field such a server drops unread `dropped by tableFromDefinition (v64+)`. The notes are judged against the server the profile last probed, read from its cache with no request: `; this server lacks it` follows a field that server lacks the feature for, which the client refuses there rather than let the server drop, ignore or fail on it, `; this server reads it differently` a value it would take as another, and `; this server ignores it` a field it drops. With no cached probe, or with `--url` naming a server the profile was not probed against, the notes stand alone. The server still decides what it accepts. An output carries no feature notes.
 
 A field holding a query the CLI checks against the MBQL 5 schema, such as a card's `dataset_query`, says so in its `description`: ``MBQL 5 query checked against `mb schema query` ``.
 
@@ -2672,13 +2672,13 @@ The former `METABASE_`-prefixed names (`METABASE_URL`, `METABASE_API_KEY`, `META
 
 Every node of the command tree answers `--help --json` with machine-readable help, mirroring what text help shows at that level:
 
-- A leaf command emits its full entry — name, description, `details`, examples, citty args with types/defaults/enums, `requires` (the client methods the command calls and the server features they need), and `inputSchema`, the contract the JSON body is held to. It is the JSON Schema of the exact validator `readBody` enforces, keyed by `$schema`; or, where the body is checked against JSON Schema documents too large to inline (`query`), an object `{ "command": … }` naming the command that prints them, with no `$schema`; or `null` for a command that takes no body. The output schema is `mb schema <command> --output`.
+- A leaf command emits its full entry — name, description, `details`, examples, citty args with types/defaults/enums, and `requires` (the client methods the command calls and the server features they need). The body schema is `mb schema <command>`, the output schema `mb schema <command> --output`.
 - A command group (and the root) emits `{ description, skills, commands }` — its own sentence (`null` when it declares none), its own agent-skill pointers, and a flat `commands: [{ command, description }]` index of every leaf in its subtree, with full-path names.
 
 ```sh
 mb --help --json | jq -r '.commands[].command'    # every command
-mb schema card query --output                     # one command's output schema
-mb card create --help --json | jq .inputSchema    # the JSON-body contract it validates
+mb card create --help --json | jq .args          # one command's flags
+mb schema card create                             # the JSON body it validates
 ```
 
 The entry and index schemas (`CommandHelpEntry`, `CommandHelpIndex`) are exported from `packages/cli/src/runtime/command-help.ts`.

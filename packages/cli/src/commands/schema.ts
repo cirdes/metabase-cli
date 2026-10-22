@@ -24,12 +24,13 @@ import main from "../main";
 import { writeJson } from "../output/render";
 import { resolveCitty } from "../runtime/citty";
 import {
+  type EmbeddedQuery,
   getMetabaseAugment,
   type MetabaseAugment,
   type SchemaContract,
 } from "../runtime/command-augment";
-import { embeddedQueryNotes, resolveCommandPath } from "../runtime/command-help";
-import { NOTE_SEPARATOR, notePaths, toJsonSchema } from "../runtime/json-schema";
+import { CLI_NAME, resolveCommandPath } from "../runtime/command-help";
+import { NOTE_SEPARATOR, notePaths, type PathNote, toJsonSchema } from "../runtime/json-schema";
 import { formatFlags, profileFlag, urlFlag } from "./flags";
 import { defineMetabaseCommand } from "./runtime";
 
@@ -85,7 +86,7 @@ class SchemaNames extends z.core.$ZodRegistry<z.core.GlobalMeta> {
 const SCHEMA_NAMES = new SchemaNames(NAMED_SCHEMAS, null);
 
 const GATE_EFFECT_TEXT = {
-  needs: { claim: "needs", verdict: "this server rejects it" },
+  needs: { claim: "needs", verdict: "this server lacks it" },
   supersededBy: { claim: "read differently under", verdict: "this server reads it differently" },
   droppedBy: { claim: "dropped by", verdict: "this server ignores it" },
 } as const satisfies Record<GateEffect, GateEffectText>;
@@ -135,7 +136,7 @@ export default defineMetabaseCommand({
     description: "Print the schema of a command's JSON body or output",
   },
   details:
-    "Names another command and prints the JSON Schema of the JSON body it accepts, or with --output of the JSON it prints. A body field only some servers take says in its description the feature it needs, as `needs fieldDataSensitivity (v64+)`. Those notes are judged against the server the profile last probed, read from its cache with no request: `this server rejects it` follows a field that server refuses, `this server reads it differently` a value it would take as another, and `this server ignores it` a field it drops unread. A field holding an MBQL 5 query names `mb schema query`, which prints the MBQL 5 query schema that query, card, transform, segment, measure and data-action bodies are checked against.",
+    "Names another command and prints the JSON Schema of the JSON body it accepts, or with --output of the JSON it prints. A body field only some servers take says in its description the feature it needs, as `needs fieldDataSensitivity (v64+)`. Those notes are judged against the server the profile last probed, read from its cache with no request: `this server lacks it` follows a field that server lacks the feature for, which the client refuses there, `this server reads it differently` a value it would take as another, and `this server ignores it` a field it drops unread. A field holding an MBQL 5 query names `mb schema query`, which prints the MBQL 5 query schema that query, card, transform, segment, measure and data-action bodies are checked against.",
   requires: null,
   args: {
     ...formatFlags,
@@ -235,4 +236,11 @@ function contractJson(contract: SchemaContract, side: Side, gateNotes: GateNotes
   const names = side === "input" ? new SchemaNames(NAMED_SCHEMAS, gateNotes) : SCHEMA_NAMES;
   const json = toJsonSchema(contract.schema, { io: side, reused: "ref", metadata: names });
   return notePaths(json, embeddedQueryNotes(contract.embedded));
+}
+
+function embeddedQueryNotes(embedded: readonly EmbeddedQuery[]): PathNote[] {
+  return embedded.map(({ path, documents }) => ({
+    path,
+    note: `${documents.title} checked against \`${CLI_NAME} schema ${documents.command.join(" ")}\``,
+  }));
 }

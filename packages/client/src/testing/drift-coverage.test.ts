@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { scanBodyMethods, type UnpairedBody } from "../../../../tests/e2e/body-routes";
+import { scanBodyMethods, type UnpairedBody } from "../../../../scripts/body-routes";
 import * as barrel from "../index";
 import type { MethodKey } from "../version/requirements";
 
 const INPUT_SUFFIX = "Input";
 
+// The drift check compares a body's top-level fields only, so an input nested in another goes
+// unchecked field by field.
 const UNSENT_INPUTS: Readonly<Record<string, string>> = {
   DashboardLayoutInput: "the CLI's dashboard create sends it through dashboard.update",
   DashcardPatchInput:
-    "dashboard.updateDashcard merges it into the dashcards dashboard.update sends",
-  TipTapNodeInput: "nested in the document inputs",
-  TransformTestInput: "nested in the transform test inputs",
+    "dashboard.updateDashcard merges it into one of the dashcards dashboard.update sends, unchecked",
+  TipTapNodeInput: "nested in the document inputs, unchecked",
+  TransformTestInput: "nested in the transform test inputs, unchecked",
 };
 
 interface UncheckedBody extends UnpairedBody {
@@ -19,10 +21,19 @@ interface UncheckedBody extends UnpairedBody {
 }
 
 const UNCHECKED_BODIES: readonly UncheckedBody[] = [
+  { key: "card.archive", bodyType: null, reason: "a fixed body sent through update" },
   { key: "card.query", bodyType: null, reason: "sends only the parameters of its params" },
   { key: "card.exportQuery", bodyType: null, reason: "a form-encoded body" },
+  { key: "collection.archive", bodyType: null, reason: "a fixed body sent through update" },
   { key: "contentTranslation.upload", bodyType: "CsvFile", reason: "a multipart upload" },
   { key: "dashboard.archive", bodyType: null, reason: "a fixed body" },
+  {
+    key: "dashboard.updateDashcard",
+    bodyType: null,
+    reason: "a dashcard patch merged into the dashcards update sends",
+  },
+  { key: "dataAction.archive", bodyType: null, reason: "a fixed body sent through update" },
+  { key: "document.archive", bodyType: null, reason: "a fixed body sent through update" },
   { key: "dataset.query", bodyType: "unknown", reason: "a query, checked against the MBQL schema" },
   { key: "dataset.native", bodyType: null, reason: "a query, checked against the MBQL schema" },
   { key: "dataset.exportQuery", bodyType: null, reason: "built from the export params" },
@@ -41,11 +52,18 @@ const UNCHECKED_BODIES: readonly UncheckedBody[] = [
   { key: "gitSync.stash", bodyType: null, reason: "built from the stash params" },
   { key: "gitSync.createBranch", bodyType: null, reason: "built from the branch params" },
   { key: "gitSync.setCollectionSynced", bodyType: null, reason: "a settings update" },
+  { key: "measure.archive", bodyType: null, reason: "a fixed body sent through update" },
   { key: "metric.query", bodyType: null, reason: "a metric definition" },
   { key: "metric.breakoutValues", bodyType: null, reason: "a metric definition" },
+  { key: "notification.archive", bodyType: null, reason: "a fixed body sent through update" },
+  { key: "pulse.archive", bodyType: null, reason: "a fixed body sent through update" },
+  { key: "segment.archive", bodyType: null, reason: "a fixed body sent through update" },
   { key: "setting.set", bodyType: null, reason: "a setting's value, whose shape the key decides" },
+  { key: "snippet.archive", bodyType: null, reason: "a fixed body sent through update" },
   { key: "table.appendCsv", bodyType: "CsvFile", reason: "a multipart upload" },
   { key: "table.replaceCsv", bodyType: "CsvFile", reason: "a multipart upload" },
+  { key: "timeline.archive", bodyType: null, reason: "a fixed body sent through update" },
+  { key: "timelineEvent.archive", bodyType: null, reason: "a fixed body sent through update" },
   { key: "transform.runDag", bodyType: null, reason: "sends only the direction of its params" },
   { key: "transformJob.run", bodyType: null, reason: "sends only run_all of its params" },
   { key: "transformJob.setActive", bodyType: null, reason: "a single flag" },

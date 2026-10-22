@@ -11,7 +11,7 @@ import { isHttpMethod } from "@metabase/client/testing/openapi-drift";
 import { isMethodKey, type MethodKey } from "@metabase/client/version/requirements";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const CLIENT_SRC = resolve(HERE, "..", "..", "packages", "client", "src");
+const CLIENT_SRC = resolve(HERE, "..", "packages", "client", "src");
 const CLIENT_ENTRY = "client.ts";
 const SOURCE_EXTENSION = ".ts";
 const API_PREFIX = "/api/";
@@ -63,6 +63,14 @@ interface ScannedBody {
   readonly bodyType: string | null;
 }
 
+interface SiblingSentBody {
+  readonly key: MethodKey;
+  readonly request: null;
+  readonly bodyType: null;
+}
+
+type ScannedMethod = ScannedBody | SiblingSentBody;
+
 interface SentBody {
   readonly request: BodyRequest;
   readonly source: ts.ParameterDeclaration | null;
@@ -91,7 +99,7 @@ export function scanBodyMethods(): BodyMethods {
   const unpaired: UnpairedBody[] = [];
   for (const { key, request, bodyType } of resourceNamespaces().flatMap(bodiesOf)) {
     const input = bodyType === null ? null : barrelObject(bodyType);
-    if (bodyType === null || input === null) {
+    if (request === null || bodyType === null || input === null) {
       unpaired.push({ key, bodyType });
     } else {
       paired.push({ key, request, inputName: bodyType, input });
@@ -150,7 +158,7 @@ function importedModules(source: ts.SourceFile): Map<string, string> {
   return modules;
 }
 
-function bodiesOf({ namespace, factory, file }: ResourceNamespace): ScannedBody[] {
+function bodiesOf({ namespace, factory, file }: ResourceNamespace): ScannedMethod[] {
   const source = parseSource(file);
   const definition = source.statements.find(
     (statement): statement is ts.FunctionDeclaration =>
@@ -178,23 +186,46 @@ function bodiesOf({ namespace, factory, file }: ResourceNamespace): ScannedBody[
   });
   const surfaceNames = new Set(methods.map(({ name }) => name));
   const helpers = new Map([...functions].filter(([name]) => !surfaceNames.has(name)));
+  const siblings = new Map([...functions].filter(([name]) => surfaceNames.has(name)));
 
-  return methods.flatMap(({ key, name }) => {
+  return methods.flatMap(({ key, name }): ScannedMethod[] => {
     const implementation = functions.get(name);
     if (implementation?.body === undefined) {
       throw new Error(`${file}: ${key} names no function declared in ${factory}`);
     }
-    const sent = sentBody(implementation, fileScope, {
-      functions: helpers,
-      key,
-      chain: [implementation],
-    });
-    if (sent === null) {
-      return [];
+    const bodyHelpers = { functions: helpers, key, chain: [implementation] };
+    const sent = sentBody(implementation, fileScope, bodyHelpers);
+    if (sent !== null) {
+      const bodyType = sent.source?.type === undefined ? null : sent.source.type.getText();
+      return [{ key, request: sent.request, bodyType }];
     }
-    const bodyType = sent.source?.type === undefined ? null : sent.source.type.getText();
-    return [{ key, request: sent.request, bodyType }];
+    // A body built here and sent through a sibling method has no input the scan can name, so it
+    // is reported rather than taken for a method that sends none.
+    const throughSibling = sendsThroughSibling(implementation, siblings, fileScope, bodyHelpers);
+    return throughSibling ? [{ key, request: null, bodyType: null }] : [];
   });
+}
+
+function sendsThroughSibling(
+  fn: ts.FunctionDeclaration,
+  surface: ReadonlyMap<string, ts.FunctionDeclaration>,
+  scope: PathScope,
+  helpers: BodyHelpers,
+): boolean {
+  const siblings: ts.FunctionDeclaration[] = [];
+  visit(fn, (node) => {
+    if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) {
+      return;
+    }
+    const sibling = surface.get(node.expression.text);
+    if (sibling !== undefined && sibling !== fn) {
+      siblings.push(sibling);
+    }
+  });
+  return siblings.some(
+    (sibling) =>
+      sentBody(sibling, scope, { ...helpers, chain: [...helpers.chain, sibling] }) !== null,
+  );
 }
 
 function localFunctions(statements: readonly ts.Statement[]): Map<string, ts.FunctionDeclaration> {
@@ -256,7 +287,9 @@ function sentBody(
     if (!ts.isCallExpression(node)) {
       return;
     }
-    const options = node.arguments.find((argument) => optionWith(argument, BODY_OPTION) !== null);
+    const options = node.arguments.find(
+      (argument) => optionWith(localValue(argument, fn), BODY_OPTION) !== null,
+    );
     if (options !== undefined) {
       sent.push(directBody(node, options, fn, fnScope, helpers.key));
       return;
@@ -297,9 +330,18 @@ function directBody(
   if (path === undefined || otherPaths.length > 0) {
     throw new Error(`${key}: cannot tell which path ${call.getText()} sends its body to`);
   }
-  const body = optionWith(options, BODY_OPTION);
+  const written = localValue(options, fn);
+  const body = optionWith(written, BODY_OPTION);
   const source = body === null ? null : sourceParameter(body, fn);
-  return { request: { method: methodOf(options, key), path }, source };
+  return { request: { method: methodOf(written, key), path }, source };
+}
+
+// Options built into a local before the call are read where they are written.
+function localValue(argument: ts.Expression, fn: ts.FunctionDeclaration): ts.Expression {
+  if (!ts.isIdentifier(argument)) {
+    return argument;
+  }
+  return localInitializer(fn, argument.text) ?? argument;
 }
 
 function argumentScope(

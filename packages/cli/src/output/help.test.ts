@@ -178,7 +178,7 @@ describe("showUsage", () => {
 
     await showUsage(cmd, undefined, "mb foo bar");
     expect(trailingLines(chunks.join(""), 2)).toEqual([
-      "Machine-readable help (flags, body schema): mb foo bar --help --json",
+      "Machine-readable help (flags): mb foo bar --help --json",
       "Body and output schemas: mb schema foo bar [--output]",
     ]);
   });
@@ -214,7 +214,7 @@ describe("showUsage", () => {
 
     await showUsage(cmd, undefined, "mb foo bar");
     expect(trailingLines(chunks.join(""), 2)).toEqual([
-      "Machine-readable help (flags, body schema): mb foo bar --help --json",
+      "Machine-readable help (flags): mb foo bar --help --json",
       "Body schema: mb schema foo bar",
     ]);
   });
@@ -509,7 +509,6 @@ describe("showUsageJson", () => {
       skills: [],
       examples: ["mb foo bar --json"],
       args: [],
-      inputSchema: null,
       requires: { methods: ["card.list"], features: [] },
     });
   });

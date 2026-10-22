@@ -2,11 +2,7 @@ import { renderUsage } from "citty";
 import type { ArgsDef, CommandDef } from "citty";
 
 import { flagSpellings, readArgv, resolveCitty } from "../runtime/citty";
-import {
-  getMetabaseAugment,
-  type SchemaContract,
-  type SkillPointer,
-} from "../runtime/command-augment";
+import { getMetabaseAugment, type SkillPointer } from "../runtime/command-augment";
 import { buildHelpEntry, buildHelpIndex, CLI_NAME, findSubCommand } from "../runtime/command-help";
 import { jsonLine } from "./render";
 
@@ -81,7 +77,7 @@ export async function showUsage<T extends ArgsDef = ArgsDef>(
     sections.push(GETTING_STARTED_HINT);
   }
   const schemas: DeclaredSchemas = {
-    body: augment?.input?.kind ?? null,
+    body: augment !== null && augment.input !== null,
     output: augment !== null && augment.outputSchema !== null,
   };
   sections.push(machineHelpHint(breadcrumb ?? cittyName, { hasSubCommands, schemas }));
@@ -116,9 +112,10 @@ function breadcrumbPath(breadcrumb: string): string[] {
 }
 
 const MACHINE_HELP_INDEX_LABEL = "Machine-readable command index:";
+const MACHINE_HELP_LEAF_LABEL = "Machine-readable help (flags):";
 
 interface DeclaredSchemas {
-  body: SchemaContract["kind"] | null;
+  body: boolean;
   output: boolean;
 }
 
@@ -131,19 +128,17 @@ function machineHelpHint(breadcrumb: string, target: MachineHelpTarget): string 
   if (target.hasSubCommands) {
     return `${MACHINE_HELP_INDEX_LABEL} ${breadcrumb} --help --json`;
   }
-  const contents = target.schemas.body === "zod" ? "flags, body schema" : "flags";
-  const helpLine = `Machine-readable help (${contents}): ${breadcrumb} --help --json`;
+  const helpLine = `${MACHINE_HELP_LEAF_LABEL} ${breadcrumb} --help --json`;
   const schemaLine = schemaHint(breadcrumbPath(breadcrumb).join(" "), target.schemas);
   return schemaLine === null ? helpLine : `${helpLine}\n${schemaLine}`;
 }
 
 function schemaHint(command: string, schemas: DeclaredSchemas): string | null {
   const schema = `${CLI_NAME} schema ${command}`;
-  const takesBody = schemas.body !== null;
-  if (takesBody && schemas.output) {
+  if (schemas.body && schemas.output) {
     return `Body and output schemas: ${schema} [--output]`;
   }
-  if (takesBody) {
+  if (schemas.body) {
     return `Body schema: ${schema}`;
   }
   if (schemas.output) {

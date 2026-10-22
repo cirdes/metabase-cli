@@ -11,7 +11,7 @@ import { defineMetabaseCommand } from "../runtime";
 
 import { preflightDashcardCardReferences, wrapChainedDashboardWriteError } from "./preflight";
 
-const DashboardCreateBody = DashboardCreateInput.extend(DashboardLayoutInput.shape).loose();
+const DashboardCreateBody = DashboardCreateInput.extend(DashboardLayoutInput.shape);
 
 export default defineMetabaseCommand({
   meta: {

@@ -84,7 +84,7 @@ describe("schema e2e", () => {
     expect(result.exitCode, result.stderr).toBe(0);
     const note = serverHas("fieldDataSensitivity")
       ? SENSITIVITY_NOTE
-      : `${SENSITIVITY_NOTE}; this server rejects it`;
+      : `${SENSITIVITY_NOTE}; this server lacks it`;
     expect(
       GatedProperty.parse(parseJson(result.stdout, z.unknown())).properties.data_sensitivity
         .description,

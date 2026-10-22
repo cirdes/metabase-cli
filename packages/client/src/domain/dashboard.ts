@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Card } from "./card";
 import { EmbeddingParams } from "./embedding";
 import { Parameter, ParameterMapping } from "./parameter";
+import { NonBlankText } from "./text";
 
 const DashboardWidth = z.enum(["fixed", "full"]);
 
@@ -157,7 +158,6 @@ export const dashboardDetailSchema: z.ZodType<DashboardDetail> = DashboardDetail
   dashcards: z.array(DashcardDetailWire),
 });
 
-
 export const DashboardCompact = Dashboard.pick({
   id: true,
   name: true,
@@ -200,11 +200,11 @@ const DashboardTabWrite = z
   })
   .loose();
 
-// Closed so a layout fails to compile rather than vanishing: the create never places dashcards or
-// tabs, only an update does.
+// The six keys every supported server declares and reads. Closed, and parsed before the request,
+// because the server drops any other key unread: a layout goes through an update instead.
 export const DashboardCreateInput = z
   .object({
-    name: z.string().min(1),
+    name: NonBlankText,
     description: z.string().nullable().optional(),
     parameters: z.array(Parameter).nullable().optional(),
     cache_ttl: z.number().int().positive().nullable().optional(),
