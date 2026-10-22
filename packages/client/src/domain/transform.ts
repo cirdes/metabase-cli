@@ -113,9 +113,10 @@ const TransformPythonSource = z
 const TransformSource = z.discriminatedUnion("type", [TransformQuerySource, TransformPythonSource]);
 type TransformSource = z.infer<typeof TransformSource>;
 
-// A server without the list keys a Python source's tables by alias, each value a table id or a
-// reference by name. Its entry takes the alias from the key, as the server's own migration to the
-// list does; that migration reads the database, schema and name of an id off the table row.
+// A server without the list keys a Python source's tables by alias. It stores each value as a table
+// id or a reference by name, but answers every read with the table id alone, `null` for a reference
+// whose table is not found. Its entry takes the alias from the key, as the server's own migration to
+// the list does; that migration reads the database, schema and name of an id off the table row.
 const TransformSourceTableRefWireV59 = z
   .object({
     database_id: z.number().int(),
@@ -125,7 +126,11 @@ const TransformSourceTableRefWireV59 = z
   })
   .loose();
 
-const TransformSourceTableWireV59 = z.union([z.number().int(), TransformSourceTableRefWireV59]);
+const TransformSourceTableWireV59 = z.union([
+  z.number().int(),
+  z.null(),
+  TransformSourceTableRefWireV59,
+]);
 
 const TransformSourceTablesWireV59 = z.record(z.string(), TransformSourceTableWireV59);
 
@@ -133,7 +138,7 @@ function toSourceTableEntry(
   alias: string,
   wire: z.infer<typeof TransformSourceTableWireV59>,
 ): TransformSourceTableEntry {
-  if (typeof wire === "number") {
+  if (wire === null || typeof wire === "number") {
     return { alias, table_id: wire, database_id: null, schema: null, table: null };
   }
   return { ...wire, alias };
@@ -169,7 +174,8 @@ const TransformSourceInput = z.discriminatedUnion("type", [
 type TransformSourceInput = z.infer<typeof TransformSourceInput>;
 
 // Inverts what a server without the list reads: the alias becomes the key, and the value is the bare
-// table id an entry naming its table by id alone was read from, else the reference less its alias.
+// table id an entry naming its table by id alone was read from, else the reference less its alias,
+// which 59 reads and 58, taking only table ids, refuses with its own 400.
 function toAliasMapValue(entry: TransformSourceTableEntryInput) {
   const { alias: _alias, ...reference } = entry;
   return namesTableByIdAlone(entry) ? entry.table_id : reference;

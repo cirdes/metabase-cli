@@ -179,7 +179,7 @@ export function collectionResource(transport: Transport) {
       query: {
         models: params.models,
         archived: params.archived,
-        // 58 reads `pinned_state` and later servers `pinned-state`; each drops the other unread.
+        // 58 through 63 read `pinned_state` and 64 on `pinned-state`; each drops the other unread.
         pinned_state: params.pinned_state,
         "pinned-state": params.pinned_state,
       },
