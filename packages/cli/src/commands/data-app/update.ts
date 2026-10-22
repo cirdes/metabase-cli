@@ -19,7 +19,7 @@ export default defineMetabaseCommand({
   inputSchema: DataAppUpdateInput,
   outputSchema: DataApp,
   examples: [
-    "mb data-app update sales-overview --body '{\"enabled\":true}'",
+    'mb data-app update sales-overview --body \'{"display_name":"Sales overview"}\'',
     'mb data-app update sales-overview --body \'{"allowed_hosts":["https://api.example.com"]}\'',
   ],
   async run({ args, ctx, getClient }) {
