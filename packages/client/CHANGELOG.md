@@ -13,6 +13,7 @@ Notable changes to `@metabase/client`.
 - A transform's Python `source-tables` entry reads without `database_id` or `schema`, as the server stores an entry whose table or database is gone. `TransformSourceTableEntry` is the stored entry, and `TransformSourceTableEntryInput`, on the barrel, is the entry the create, update and Python test-run bodies take, as strict as before.
 - Every transform read on Metabase 59 accepts a Python transform, whose `source-tables` that server keys by alias. `transformRowSchema` and `transformDetailSchema` read it as the list later servers answer, taking each alias from its key; an entry naming its table by id alone reads `database_id`, `schema` and `table` as `null`. `transformSourceTablesAsList` is the feature.
 - The dependency readers accept the action nodes Metabase 65 adds: `DependencyType` and `DependencyUsageType` take `"action"`, and `DependencyEntityData.type` takes an action's `"implicit"` or `"query"`. `dependency.graph`, `dependency.dependents` and `dependency.broken` explain an older server's refusal of an action as the entity through `actionDependencyGraph`.
+- `notification.get`, and the `update`, `archive` and `send` that read through it, refuse a dashboard subscription with the "not a question alert" `ConfigError` instead of a shape error on its payload. `AnyNotification` is the reader: a question alert in full, any other type read no further than `id` and `payload_type`. `CARD_PAYLOAD_TYPE` has the literal type `"notification/card"`.
 
 ## 0.1.0
 
