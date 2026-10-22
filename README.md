@@ -34,7 +34,7 @@ node packages/cli/dist/cli.mjs --help
 
 The binary is `mb`. Examples below use that name.
 
-File paths in this document are relative to the repository root, so they resolve in a checkout of <https://github.com/metabase/mb-cli> rather than in the installed package — the npm tarball carries only `dist`, `skills` and `skill-data`.
+File paths in this document are relative to the repository root, so they resolve in a checkout of <https://github.com/metabase/metabase-cli> rather than in the installed package — the npm tarball carries only `dist`, `skills` and `skill-data`.
 
 ## Quick start
 
@@ -2619,8 +2619,8 @@ Bundled skills:
 
 Discovery surfaces:
 
-- **Claude Code plugin marketplace**: `.claude-plugin/marketplace.json` declares a `metabase-cli` plugin pointing at the in-repo discovery stub. Users install with `/plugin marketplace add metabase/mb-cli` then `/plugin install metabase-cli@metabase`. The manifest lives at the repo root and is served from GitHub, not from the npm tarball: its `source: "./packages/cli"` is resolved relative to the repo checkout, so a copy inside the published package would point at nothing. `files` in `packages/cli/package.json` therefore omits `.claude-plugin` by design.
-- **`npx skills add`**: the same stub at `packages/cli/skills/metabase-cli/SKILL.md` is picked up by `npx skills add metabase/mb-cli`. The stub is intentionally minimal — it redirects the agent at `mb skills get core` so the real workflow content always comes from the installed CLI version.
+- **Claude Code plugin marketplace**: `.claude-plugin/marketplace.json` declares a `metabase-cli` plugin pointing at the in-repo discovery stub. Users install with `/plugin marketplace add metabase/metabase-cli` then `/plugin install metabase-cli@metabase`. The manifest lives at the repo root and is served from GitHub, not from the npm tarball: its `source: "./packages/cli"` is resolved relative to the repo checkout, so a copy inside the published package would point at nothing. `files` in `packages/cli/package.json` therefore omits `.claude-plugin` by design.
+- **`npx skills add`**: the same stub at `packages/cli/skills/metabase-cli/SKILL.md` is picked up by `npx skills add metabase/metabase-cli`. The stub is intentionally minimal — it redirects the agent at `mb skills get core` so the real workflow content always comes from the installed CLI version.
 
 Exit codes: `0` success (a skill the server cannot use is reported, not refused), `2` `ConfigError` (missing name, unknown name, `MB_SKILLS_DIR` not a directory, an unknown feature in `requires`, an unbalanced section marker), `1` unexpected I/O.
 
