@@ -156,7 +156,7 @@ What `--help` doesn't say: footguns and non-obvious behaviors.
 - **setup is one-shot.** `mb setup` walks `/api/setup` for a **fresh** instance only and errors on a configured one; mostly for bootstrapping local / e2e instances.
 - **eid** translates a string entity id → numeric id: `mb eid --model <model> <eid1,eid2> --json`. Entity ids are NanoIDs that can start with `-`, which the positional form misreads as a flag (shell quotes don't help) — for those, use `--body '{"entity_ids":{"card":["-…"]}}'` (the id is a JSON string value, immune to flag parsing).
 <!-- requires: library -->
-- **library.** The Library is a curated subtree (`library-data` "Data" + `library-metrics` "Metrics" under a `library` root): tables in **Data** lead data pickers and rank up in search; metrics in **Metrics** lead nav, search, and the query builder. `library get` shows its Data/Metrics collection ids; `library create` provisions it (idempotent). `library publish --table-ids/--db-ids/--schemas` publishes tables into Data, **resolving the Data collection and creating the Library if absent**; each `--schemas` entry is `<db-id>:<schema>` (`1:public`), not a bare name. `publish` cascades to upstream FK dependencies, `unpublish` to downstream dependents; both need **admin or data-analyst** (Curate alone won't publish) and exit **403** without write **and** query permission on every affected table. `table get`/`table list` carry `is_published` (`collection_id` under `--full`). Publishing leaves the Data collection out of git-sync scope: on a remote-sync instance, `mb git-sync add-collection <data-collection-id>` makes exports carry published tables' metadata (see `git-sync`).
+- **library.** The Library is a curated subtree (`library-data` "Data" + `library-metrics` "Metrics" under a `library` root): tables in **Data** lead data pickers and rank up in search; metrics in **Metrics** lead nav, search, and the query builder. `library get` shows its Data/Metrics collection ids; `library create` provisions it (idempotent). `library publish --table-ids/--db-ids/--schemas` publishes tables into Data, **resolving the Data collection and creating the Library if absent**; each `--schemas` entry is `<db-id>:<schema>` (`1:public`), not a bare name. `publish` cascades to upstream FK dependencies, `unpublish` to downstream dependents; both need **admin or data-analyst** (Curate alone won't publish) and exit **403** without write **and** query permission on every affected table. `table get`/`table list` carry `is_published` (`collection_id` under `--full`). On a remote-sync instance, `mb git-sync add-collection <library-id>` (the root) makes exports carry published tables' metadata (see `git-sync`).
 <!-- /requires -->
 - **query / uuid.** `mb query` runs MBQL (`--dry-run` → run; `mbql`). `mb uuid --count <n>` mints an aggregation's `lib/uuid` (`mbql`) and document node `_id`s (`document`).
 <!-- requires: library, tableListPublishedFilter -->
@@ -165,7 +165,7 @@ What `--help` doesn't say: footguns and non-obvious behaviors.
 
 ## Specialized skills (load on demand)
 
-This file is enough for any single-command task. For anything deeper, load the relevant skill **proactively** with `mb skills get <name>` — don't wing an MBQL body, a transform body, or the git-sync workflow from this overview.
+This file is enough for any single-command task. For anything deeper, load the relevant skill (`mb skills get <name>`) **proactively** — don't wing it from this overview.
 
 - **`mbql`** — authoring/fixing any MBQL query body (`mb query`, card `dataset_query`, transform `source.query`, measure/segment `definition`); reading `--dry-run` errors. The query-body reference.
 - **`native-sql`** — authoring a native SQL `dataset_query` with parameters: template tags, field filters vs. raw variables, snippets, card references, and wiring a tag to a dashboard filter. The SQL fallback when MBQL can't express it (`mbql` first).
@@ -185,6 +185,9 @@ This file is enough for any single-command task. For anything deeper, load the r
   <!-- /requires -->
   <!-- requires: remoteSync -->
 - **`git-sync`** — round-tripping content to/from a git remote.
+  <!-- /requires -->
+  <!-- requires: dataApps -->
+- **`data-app`** — data apps: create, preview, publish (start here).
 <!-- /requires -->
 - **`data-workflow`** — the guided, end-to-end data workflow: investigate raw data, build clean analysis-ready tables, define reusable segments/measures/metrics, answer questions, build dashboards. **Start here when the user states a goal rather than a single verb** — "make sense of my data", "build a data model", "be my data analyst". It detects where the data is and routes to the right stage.
 

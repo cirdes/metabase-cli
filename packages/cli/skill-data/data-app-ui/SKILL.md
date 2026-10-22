@@ -35,7 +35,7 @@ Everything here runs inside the sandbox, the same in the dev preview as in Metab
 | `navigator.geolocation` and other device APIs                                                              | Nothing.                                                                                  |
 | Key, input, composition and clipboard listeners (`keydown`, `paste`, `input`, …) on `window` or `document` | A React handler (`onKeyDown`, `onPaste`, …) on your own element.                          |
 
-**External APIs.** A raw `fetch` reaches only the origins in the app's `allowed_hosts`, exact or with a `*.` subdomain wildcard: `mb data-app update <slug> --body '{"allowed_hosts":["https://api.example.com"]}'`, plus an `allowed_hosts:` list in `data_app.yaml` beside `package.json` for the preview, then restart `npm run dev`. Never list the Metabase URL. In Metabase the same list governs `<iframe src>` and native `<form action>` submits, and the target must allow framing; the preview blocks both. Use `<form onSubmit>` with `preventDefault`: a native submit navigates the app away.
+**External APIs.** A raw `fetch` reaches only the origins in the app's `allowed_hosts`, exact or with a `*.` subdomain wildcard: `mb data-app update <slug> --body '{"allowed_hosts":["https://api.example.com"]}'`. The preview reads the `allowed_hosts:` list in `data_app.yaml` beside `package.json`: in a synced repository that file is the app's exported manifest, so export again and pull the export branch (`data-app`, _Move to another instance_) to refresh it rather than writing it; without one, write the list there yourself. Then restart `npm run dev`. Never list the Metabase URL. In Metabase the same list governs `<iframe src>` and native `<form action>` submits, and the target must allow framing; the preview blocks both. Use `<form onSubmit>` with `preventDefault`: a native submit navigates the app away.
 
 ## Layout
 
@@ -69,12 +69,12 @@ export function AppError({ message }: SdkErrorComponentProps) {
 
 ## SDK components
 
-| Import                                                                           | For                                                                   |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `StaticQuestion`                                                                 | A chart, KPI or table without drill-through — the default.            |
-| `InteractiveQuestion`                                                            | One meant to be explored: drill-through, chart switching, the editor. |
-| `StaticDashboard`, `InteractiveDashboard`, `EditableDashboard`                   | A dashboard.                                                          |
-| `CreateQuestion`, `MetabotQuestion`, `CollectionBrowser`, `CreateDashboardModal` | Authoring flows, rarely in an app.                                    |
+| Import                | For                                                                                     |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| `StaticQuestion`      | A chart, KPI or table without drill-through — the default.                              |
+| `InteractiveQuestion` | One meant to be explored: drill-through, chart switching; pass `isSaveEnabled={false}`. |
+
+Both take a question in the app's collection. Dashboards and the authoring components (`CreateQuestion`, `CreateDashboardModal`, saving from the editor) don't work in an app: its collection can't hold a dashboard, and an app can't save content.
 
 ## A Metabase chart or your own
 
@@ -82,13 +82,13 @@ Ask "can Metabase draw this at all?", never "which looks closer to the design?" 
 
 - **Yes** — bar, line, area, combo, row, pie, scalar, smartscalar, gauge, progress, funnel, scatter, waterfall, boxplot, sankey, pivot, map, tables: render it with `useMetabaseQueryObject` and `StaticQuestion` (`data-app-data`). It keeps the instance's formatting, tooltips, theming and drill-through. Styling is never a reason to draw it yourself.
 - **No**, or the user asked for a custom one — scorecards, timelines, calendar grids, one visual from several queries: draw it from `useMetabaseQuery` rows, with SVG or a chart library the app already has.
-- A KPI is `scalar`, `smartscalar`, `gauge` or `progress`; put what Metabase doesn't draw (a caption, stars) beside it.
+- A KPI is `scalar`, `smartscalar`, `gauge` or `progress` — on a question filtered at runtime to one bucket, `scalar` (a `smartscalar` loses its comparison); put what Metabase doesn't draw (a caption, stars) beside it.
 - `InteractiveQuestion`: pass `isSaveEnabled={false}`, and `title={false}` in a panel with its own heading. Children replace its layout: `<InteractiveQuestion card={card}><InteractiveQuestion.QuestionVisualization height={360} /></InteractiveQuestion>` is the chart alone.
 
-**Visualization settings.** Add `visualizationSettings` only for a change the user asked for. Their keys are a question's `visualization_settings` keys — the `visualization` skill lists them — and the installed types decide what's legal: `rg -n "<key>|declare type .*VisualizationSettings" node_modules/@metabase/embedding-sdk-react/dist/index.d.ts`, never the whole file, never from memory. Keep them few: keys such as `graph.dimensions`, `pie.metric` and `column_settings` name result columns and break when the question changes.
+**Visualization settings.** Add `visualizationSettings` only for a change the user asked for, or `scalar.field` on a KPI whose first column isn't the number. Their keys are a question's `visualization_settings` keys — the `visualization` skill lists them — and the installed types decide what's legal: `rg -n "<key>|declare type .*VisualizationSettings" node_modules/@metabase/embedding-sdk-react/dist/index.d.ts`, never the whole file, never from memory. Keep them few: keys such as `graph.dimensions`, `pie.metric` and `column_settings` name result columns and break when the question changes.
 
 - A `table` with two breakouts and one aggregation renders as a pivot when a breakout has at most 16 values; `{ "table.pivot": false }` keeps one row per group.
-- A scalar shows the first column: with a key column first, point it at the number with `{ "scalar.field": "avg_rating" }`.
+- A scalar shows the first column: with a key or breakout column first (a date on a month question), point it at the number with `{ "scalar.field": "avg_rating" }`.
 - A header: `column_settings: { '["name","approvers"]': { column_title: "Approvers" } }`.
 
 ## Pages
@@ -117,4 +117,4 @@ Metabase mirrors each route to `/apps/<slug>/<path>`, and a reload there opens t
 
 ## Before handoff
 
-`npm run dev` only transpiles: run `npm run typecheck` after every round of edits and fix what it reports, and report the result, errors grouped by cause. Search the changed files and fix what turns up: `card={{` (every `card` comes from `useMemo`), `row[0]` and `as unknown as` (rows are keyed by column name), `<select` for a list from a question (`data-app-filters`), `type="date"` and `new Date(` in a date filter, `* 100` and `%`. Read the diagnostics feed with every panel mounted, then build and publish (`data-app`, _Build and publish_).
+`npm run dev` only transpiles: run `npm run typecheck` after every round of edits and fix what it reports, and report the result, errors grouped by cause. Search the changed files and fix what turns up: `card={{` (every `card` comes from `useMemo`), `row[0]` and `as unknown as` (rows are keyed by column name), `<select` for a list from a question (`data-app-filters`), `type="date"` and `new Date("` (a date string parsed as UTC) in a date filter, `* 100` and `%`. Read the diagnostics feed with every panel mounted, then build and publish (`data-app`, _Build and publish_).

@@ -7,7 +7,7 @@ and the `mb` data-app skills.
 ## Install
 
 Install the SDK tag matching the Metabase instance first, then the rest.
-`<major>` is 66 for a version tag v1.66.x (`mb auth status --json | jq -r .version.tag`);
+`<major>` is 66 for a version tag v1.66.x (`mb auth status --profile <name> --json | jq -r .version.tag`);
 `package.json` asks for any version, which would install `latest`.
 
 ```bash

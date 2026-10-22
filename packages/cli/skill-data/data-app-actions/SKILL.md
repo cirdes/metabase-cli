@@ -13,6 +13,8 @@ An **action** is a saved, parameterized SQL write — `INSERT`, `UPDATE` or `DEL
 2. Regenerate `src/metabase.ts` (`data-app-data`).
 3. Pass `actions.<name>` from it to `useAction`.
 
+An action in the app's collection can't be archived: to drop one, move it to a data actions collection (`mb data-action update <id> --body '{"collection_id":<id>}'`), then archive it.
+
 Each action there lists its parameters: the parameter slug (the key `execute` takes), `displayName` (a label, never a key), `jsType` (`string`, `number`, `Date`, `boolean` or `unknown`) and `required`. Never fake a call to an action `src/metabase.ts` doesn't list.
 
 ## The hook
@@ -83,6 +85,7 @@ export function NoteForm({ orderId, onSaved }: { orderId: number; onSaved: () =>
 After a write succeeds, refetch every query on screen it could have changed: `await Promise.all([orders.refetch(), totals.refetch()])`, the `refetch` that `useMetabaseQuery` returns.
 
 - Those queries live in a component above the trigger, which passes the refresh down; a query in the trigger's own component or below it can't be wired to it.
+- A `StaticQuestion` panel has no `refetch`: give it a `key` the parent bumps after the write, which remounts it and runs the question again.
 - Await the refresh before clearing the form or closing the modal, so stale rows never flash.
 - Never prepend `result` to a local list instead: ids, timestamps and computed columns come from the server.
 

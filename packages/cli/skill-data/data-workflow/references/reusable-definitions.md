@@ -49,7 +49,7 @@ Two things never bend in any mode: when genuinely unsure, **ask** (the Shared Co
   - "Let me filter to just the active ones" → a **segment** (saved filter).
   - "Let me add up revenue the same way everywhere, on this table" → a **measure** on the table.
   - "Revenue is an _official company number_ people pull onto dashboards" → a **metric** in a collection, with a default month-by-month view so it charts cleanly. Lean: make it a metric when it's a headline figure the org reuses across many questions/dashboards; keep it a measure when it's a table-local convenience.
-- **Where the metric lives.** Metrics sit in a collection (folder). Lean: put the org's blessed ones in the shared **Library** so they surface prominently; keep experimental ones in a working collection until trusted.
+- **Where the metric lives.** Metrics sit in a collection (folder). Lean: put the org's blessed ones in the Library's **Metrics** collection so they surface prominently; keep experimental ones in a working collection until trusted.
 <!-- requires: library -->
 - **Publish the official tables to the Library.** The clean, analysis-ready tables your definitions sit on are the org's official starting points — the **Library** is how you mark them as such. Tables published to the Library's **Data** section appear _first_ when anyone picks a data source, nudging people toward your curated tables instead of raw warehouse ones. Lean: publish the wide clean tables you built the semantic layer on; hold back raw or half-built ones. Surface which tables you'd publish and confirm. (Only admins and data analysts can publish — mechanics in `core`.)
 <!-- /requires -->
@@ -102,7 +102,7 @@ Build each agreed definition. The verb mechanics (create/update flags, the `revi
 
 - **Segment** → `mb segment create`. A flat MBQL filter clause on a table.
 - **Measure** → `mb measure create`. **Exactly one** aggregation on a table.
-- **Metric** → `mb card create` with the metric shape (`type: "metric"`) — it lives in a **collection**, carries the aggregation plus an optional default time dimension. Put org-blessed ones in the Library collection.
+- **Metric** → `mb card create` with the metric shape (`type: "metric"`) — it lives in a **collection**, carries the aggregation plus an optional default time dimension. Put org-blessed ones in the Library's **Metrics** collection (id from `mb library get`).
 <!-- requires: library -->
 - **Publish the official tables** → `mb library create` then `mb library publish` (mechanics in `core`) to move the clean tables your definitions sit on into the Library's **Data** section, so people start from your curated set, not raw warehouse tables.
 <!-- /requires -->

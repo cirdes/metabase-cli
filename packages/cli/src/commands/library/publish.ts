@@ -29,8 +29,13 @@ export default defineMetabaseCommand({
     description: "Publish tables (and their upstream dependencies) to the Library Data collection",
   },
   details:
-    "Sets each selected table and every upstream table it depends on into the Library Data collection, so they appear first in data pickers and rank up in search. The Library Data collection is resolved automatically (and the Library is created if it doesn't exist yet). Select with --table-ids, --db-ids, or --schemas (each schema id is \"<db-id>:<schema>\", e.g. 1:public); the filters are combined. Publishing does not add the Library Data collection to the git-sync scope — on an instance with remote sync configured, run `mb git-sync add-collection <collection-id>` so exports carry the published tables' metadata.",
-  requires: ["library.ensureDataCollectionId", "library.publishTables", "gitSync.remoteUrl"],
+    "Sets each selected table and every upstream table it depends on into the Library Data collection, so they appear first in data pickers and rank up in search. The Library Data collection is resolved automatically (and the Library is created if it doesn't exist yet). Select with --table-ids, --db-ids, or --schemas (each schema id is \"<db-id>:<schema>\", e.g. 1:public); the filters are combined. Publishing does not add the Library to the git-sync scope — on an instance with remote sync configured, run `mb git-sync add-collection <library-id>` with the Library root's id, so exports carry the published tables' metadata and the rest of the Library.",
+  requires: [
+    "library.ensureDataCollectionId",
+    "library.publishTables",
+    "collection.get",
+    "gitSync.remoteUrl",
+  ],
   args: {
     ...outputFlags,
     ...profileFlag,
@@ -54,9 +59,16 @@ export default defineMetabaseCommand({
 
     const result: LibraryPublishResultJson = { target_collection: target };
     renderSummary(result, libraryPublishResultView, summaryLine(result), ctx);
-    await warnIfOutsideSyncScope(client, target);
+    const rootId = libraryRootId(target);
+    const root = rootId === null ? target : await client.collection.get(rootId).catch(() => target);
+    await warnIfOutsideSyncScope(client, root);
   },
 });
+
+function libraryRootId(data: Collection | null): number | null {
+  const rootId = data?.location?.match(/^\/(\d+)\/$/)?.[1];
+  return rootId === undefined ? null : Number(rootId);
+}
 
 function summaryLine(result: LibraryPublishResultJson): string {
   const collection = result.target_collection;

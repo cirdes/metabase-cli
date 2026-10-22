@@ -7,7 +7,7 @@ requires: [remoteSync]
 
 # git-sync (representations ↔ instance)
 
-Metabase content (cards, dashboards, transforms, snippets, collections, …) can live in a git repo as YAML and round-trip in and out of a Metabase instance via the `git-sync` verbs. The instance is configured with a `remote-sync-*` settings block (URL, branch, token, type read-only/read-write); the CLI drives the sync tasks against `/api/ee/remote-sync/*`. Only collections flagged for sync serialize; everything else is local-only. Table and field metadata round-trips too, for Library-published tables in a flagged collection — see "Published table metadata" below.
+Metabase content (cards, dashboards, transforms, snippets, collections, …) can live in a git repo as YAML and round-trip in and out of a Metabase instance via the `git-sync` verbs. The instance is configured with a `remote-sync-*` settings block (URL, branch, token, type read-only/read-write); the CLI drives the sync tasks against `/api/ee/remote-sync/*`. Only flagged collections serialize, plus, unflagged: each data app's collection (with its app, `data_apps/<slug>/`), transforms (`remote-sync-transforms`), and snippets, data actions and glossary once the Library is synced. Everything else is local-only. Table and field metadata round-trips too, for Library-published tables in a flagged collection — see "Published table metadata" below.
 
 The repo and the instance are two ends of the same state; what "push my changes" means depends on where the changes were made. If they were made **in the instance** (CLI verbs against a read-write instance — cards edited, transforms created, tables published, metadata written), "push my changes" / "save this to the repo" / "open a PR with these changes" means driving the instance's export to a branch (`stash` or `create-branch` + `export`) and opening the PR from that branch — not reconstructing the changes as files. If the workflow is **repo-first** (content YAML edited in the repo, the instance imports it), plain `git` against the repo is the way — but only in the serialized layout already there: files in paths or formats the serializer doesn't own are invisible to Metabase and never apply on import.
 
@@ -64,7 +64,7 @@ Workflow:
 
 <!-- requires: remoteSyncRemoteChanges -->
 
-Between the two, confirm `has-remote-changes` reports `has_changes: true` — there's actually something to import.
+Between the two, confirm `has-remote-changes` reports `has_changes: true` (`--force-refresh` after your own push: the answer is cached).
 
 <!-- /requires -->
 
@@ -168,7 +168,7 @@ Skip the prompt only if the user's instructions already specified the branch (e.
 ```bash
 mb git-sync branches --profile <n> --json                 # list remote branches
 mb git-sync create-branch <name> --profile <n>            # create + switch sync to it
-mb git-sync stash --profile <n>                           # export current state to a NEW branch
+mb git-sync stash --new-branch <name> --profile <n>       # export current state to a NEW branch
 ```
 
 `stash` is the safe move when the instance has team work you don't want to lose, but you need to pivot to a different branch (`import` would discard, `export --force` would overwrite). It exports current state to a fresh branch first.
@@ -184,18 +184,20 @@ Use `wait` after `import --no-wait` / `export --no-wait`. Use `cancel-task` if a
 
 ## Adding / removing a directory (collection) to sync
 
-The set of directories under sync is governed by which **collections** carry `is_remote_synced: true`. Every collection so flagged serializes to its own folder under `collections/` in the repo; everything outside that set is local-only. The CLI exposes per-collection toggles that route to the underlying bulk endpoint (`PUT /api/ee/remote-sync/settings`):
+The set of directories under sync is governed by which **collections** carry `is_remote_synced: true`. Every collection so flagged serializes to its own folder under `collections/` in the repo; so do the unflagged ones above (a data app's collection can't be flagged). Everything else is local-only. Toggle one collection at a time:
 
 ```bash
 mb git-sync add-collection    <collection-id> --profile <n> --json
 mb git-sync remove-collection <collection-id> --profile <n> --json
 ```
 
-`<collection-id>` is a **positive integer** (the bulk endpoint's schema is `pos-int? → boolean`; nano-id / `root` / `trash` refs are not supported). Get the id from `collection list` (see `core`).
+`<collection-id>` is a **positive integer** (no nano-id, `root` or `trash`). Get the id from `collection list` (see `core`).
 
-Both verbs return `{ success: true }`, plus a `task_id` only when the toggle started a follow-up task (e.g. a finalization import after switching to read-only).
+Both return `{ success: true }`, plus a `task_id` when the toggle started a follow-up task.
 
 **Cascade.** A toggle on a parent cascades to every descendant by `location` prefix — `add-collection 4` flips `4` plus every collection nested under it. `remove-collection 4` is the symmetric inverse. There is no per-leaf-only mode.
+
+**Custom collections.** Outside the Library, transforms, snippets and data actions, a flag answers 400 unless the admin setting `remote-sync-custom-collections-enabled` is on (a data app's collection can't be flagged at all).
 
 **Mode prerequisite.** The server rejects toggles while `remote-sync-type` is `:read-only` (the install default; `mb git-sync status --json` reports it as `sync_type`). If `mb git-sync add-collection 12` returns `Metabase returned 400 … Cannot change synced collections when remote-sync-type is read-only.`, switch first with:
 
@@ -237,13 +239,13 @@ To plan the order before the first move, `mb dependency graph dashboard <id> --j
 
 ## Published table metadata (Library) and sync scope
 
-Table and field metadata — table/field descriptions, semantic types (`type/PK`, `type/FK`), FK targets, plus segments and measures on the table — serializes for **Library-published tables only**, under `databases/<db>/schemas/<schema>/tables/<table>/…` in the repo. Eligibility is two-gated: the table must be published (`mb library publish`), **and** the Library collection holding it must itself carry `is_remote_synced: true`. An ordinary warehouse table, or a transform's target table that isn't published, never serializes — a transform's YAML carries only the transform definition (query, target, description), not the output table's field metadata.
+Table and field metadata — table/field descriptions, semantic types (`type/PK`, `type/FK`), FK targets, plus segments and measures on the table — serializes for **Library-published tables only**, under `databases/<db>/schemas/<schema>/tables/<table>/…` in the repo. Eligibility is two-gated: the table must be published (`mb library publish`), **and** Library Data must be synced; flag the Library root, as Data alone leaves out Metrics, Dashboards, snippets, data actions and glossary. An ordinary warehouse table, or a transform's target table that isn't published, never serializes — a transform's YAML carries only the transform definition (query, target, description), not the output table's field metadata.
 
-The classic trap: publish tables, write field metadata, then `git-sync dirty` comes back empty and nothing lands in the repo. That does not mean git-sync can't carry table metadata — it means the Library collection isn't in the sync scope, so nothing was eligible for dirty-tracking when the writes happened. Check the scope (`synced_collections` in `status`), then:
+The classic trap: publish tables, write field metadata, then `git-sync dirty` comes back empty and nothing lands in the repo. It means the Library collection isn't in the sync scope, so nothing was eligible for dirty-tracking when the writes happened. Check the scope (`synced_collections` in `status`), then:
 
 ```bash
-mb library get --profile <n> --json                                # Library Data collection id
-mb git-sync add-collection <library-data-id> --profile <n>
+mb collection list --profile <n> --json                            # the "type": "library" entry's id
+mb git-sync add-collection <library-id> --profile <n>
 mb git-sync stash --new-branch <branch> -m "..." --profile <n>     # or create-branch + export
 ```
 
@@ -256,7 +258,7 @@ Flagging the collection records it for the next export, which serializes its cur
 - Don't turn instance-side changes into hand-written repo files: export them and PR the exported branch (see the top of this skill). Files pushed behind Metabase's back race its own sync tasks.
 - Don't conclude from an empty `dirty` list that a change type isn't tracked. Dirty-tracking only records changes to _eligible_ objects; the usual cause is scope (the collection isn't flagged — see "Published table metadata"), not capability. Check `synced_collections` in `status` before concluding.
 - Don't run `git-sync import --force` or `git-sync export --force` without explicit user confirmation. Both are lossy — `--force` import discards instance-side work, `--force` export overwrites the remote branch.
-- Don't drive `git-sync` against a Metabase instance that doesn't have remote-sync configured — every verb returns an error pointing at the missing `remote-sync-*` settings. To check: `mb git-sync status --profile <n> --json` reports `remote_configured: false` when no remote is configured.
+- Don't drive `git-sync` against a Metabase instance that doesn't have remote-sync configured — import, export, has-remote-changes and export-preflight answer `Remote sync is not configured.` To check: `mb git-sync status --profile <n> --json` succeeds and reports `remote_configured: false`.
 - Don't author content directly via `card create` / `transform create` and then assume `git-sync export` will commit it cleanly — the instance and repo can drift if you mix direct API writes with sync-tracked changes. If you do, follow direct writes immediately with `git-sync export -m "..."` to keep them in step.
 - Don't move a dashboard or question into a synced collection before what it depends on, and don't retry a `Uses content that is not remote synced.` refusal unchanged. Move the listed dependencies first, move the whole containing collection, or build the content in the synced collection to begin with (see "Moving content into or out of a synced collection").
 - Don't omit `-m` on `export` if the user wants a meaningful commit message — the default server-generated message is generic.

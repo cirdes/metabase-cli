@@ -12,13 +12,13 @@ export default defineMetabaseCommand({
     description: "Update a data app's fields, or enable or disable it",
   },
   details:
-    "The JSON body carries only the fields to change: `display_name`, `description`, `allowed_hosts`, `enabled`, `bundle_path`, `version`. A disabled app is served only to admins. `mb data-app set-bundle` replaces the bundle from a built file.",
+    "The JSON body carries only the fields to change: `display_name`, `description`, `allowed_hosts`, `enabled`, `bundle_path`, `version`. A disabled app opens only in Data Studio (Data apps → the app → Overview). `mb data-app set-bundle` replaces the bundle from a built file.",
   requires: ["dataApp.update"],
   args: { ...outputFlags, ...profileFlag, ...connectionFlags, ...bodyInputFlags, ...slugArg },
   inputSchema: DataAppUpdateInput,
   outputSchema: DataApp,
   examples: [
-    "mb data-app update sales-overview --body '{\"enabled\":true}'",
+    'mb data-app update sales-overview --body \'{"display_name":"Sales overview"}\'',
     'mb data-app update sales-overview --body \'{"allowed_hosts":["https://api.example.com"]}\'',
   ],
   async run({ args, ctx, getClient, readBody }) {

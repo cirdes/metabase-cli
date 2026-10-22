@@ -19,12 +19,13 @@ Before any control, write one row per filter: the question that gives its option
 | Plan      | orders broken out by plan  | plan text    | orders                 | revenue, stock |
 
 - A filter in the page's global bar changes every panel that can take it. One that can't reach a panel is scoped to its section, visibly, or left out. A KPI and its detail table about the same thing take the same filters, unless the UI says why not.
+- A KPI on an aggregated question shows one complete bucket (`data-app-data`, _Runtime clauses_): it gets its own control of one-bucket presets starting at the last complete bucket, never All time, rather than a shared bar's ranges.
 - One date control per scope. Never a global date range beside a page-specific date where one of the two does nothing; a page whose cards use another date column gets one control for that column.
 - Build each panel's clauses from its own question's columns, inline at its hook call. Never reuse an array built for another question.
 
 ## Values and options
 
-- Every filter starts at **All**. Keep it as `"all"` in state and send it as no clause (`[]`); treat `""`, `null` and `undefined` the same way. In a Yes/No/All filter, Yes and No each filter (`true`, `false`), and only All sends nothing.
+- Every filter starts at **All**, except a KPI's own date control (above). Keep it as `"all"` in state and send it as no clause (`[]`), except on an aggregated question whose panel doesn't show the filtered column, where All is its own question (`data-app-data`, _Runtime clauses_); treat `""`, `null` and `undefined` the same way. In a Yes/No/All filter, Yes and No each filter (`true`, `false`), and only All sends nothing.
 - Options come at runtime from their own question in the app's collection, broken out on the filtered column — never hardcoded unless the user gave a closed list. Dedupe them from its rows, and keep the label apart from the value.
 - Filter by a stable raw value (an id) and show its label; never filter by a display label when an id exists, and never feed free text into an exact-id filter.
 - All stays selectable while options load, come back empty or fail; don't disable the control. When fresh options no longer hold the selected value, reset to All:
@@ -48,7 +49,7 @@ Any list whose options come from a question — an id shown as a name, a categor
 
 ## Date ranges
 
-A preset bar lists the durations, then All time, then Custom last — leave Custom out only if the user asked for fixed presets. Every option ends in the same `[start, end]` range (All time is `[null, null]`), so one `between` filter serves them all. Custom is `DateRangePopover` around your own trigger, or `DateRangeCalendar` inline, both from `@metabase/embedding-sdk-react/data-app`. No date-picker library and no `<input type="date">` for a range.
+A preset bar lists the durations, then All time, then Custom last — leave Custom out only if the user asked for fixed presets, or the bar filters an aggregated question, which offers only whole, complete buckets and no All time on a KPI (`data-app-data`, _Runtime clauses_). Every option ends in the same `[start, end]` range (All time is `[null, null]`), so one `between` filter serves them all. Custom is `DateRangePopover` around your own trigger, or `DateRangeCalendar` inline, both from `@metabase/embedding-sdk-react/data-app`. No date-picker library and no `<input type="date">` for a range.
 
 ```tsx
 import { DateRangePopover, filter, useDateFormatter } from "@metabase/embedding-sdk-react/data-app";
@@ -68,7 +69,7 @@ const [start, end] = range;
 - Label it with `formatDateRange(range)` (or `formatDate` for one end), which formats in the instance's locale; both take a dayjs `format`, and `formatDateRange` a `separator`. It returns `""` until the SDK loads. Never `new Date("YYYY-MM-DD")`: a date-only string parses as UTC and shows the previous day west of Greenwich.
 - The popover closes once both ends are picked (`closeOnSelect`); `opened` and `onOpenedChange` control it yourself. Also `defaultValue`, `minDate` and `maxDate` (`YYYY-MM-DD`), `numberOfColumns` (default 2) and `position` (default `bottom-start`). `DateRangeCalendar` takes the same value props plus `className` and `style`.
 
-A preset's range, from local dates — never `toISOString()`, which shifts the day:
+A preset's range, from local dates — never `toISOString()`, which shifts the day. `lastMonths` is a rolling window, for a rows question; on a month question, `lastCompleteMonths` gives bucket starts:
 
 ```ts
 const ymd = (d: Date) =>
@@ -78,10 +79,17 @@ const lastMonths = (n: number): [string, string] => {
   const start = new Date(end.getFullYear(), end.getMonth() - n, end.getDate());
   return [ymd(start), ymd(end)];
 };
+const lastCompleteMonths = (n: number): [string, string] => {
+  const now = new Date();
+  return [
+    ymd(new Date(now.getFullYear(), now.getMonth() - n, 1)),
+    ymd(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
+  ];
+};
 ```
 
 **A single date or a date-time** is the one case for a library: `npm install react-datepicker`, import `react-datepicker/dist/react-datepicker.css`, type the callback (`(date: Date | null) => …`), and convert with `ymd` above. Pass `null`, never `new Date("")`, for an empty value.
 
 ## Check
 
-For every visible filter: All runs the unfiltered question; its options come from a question; each option changes every panel the contract says it reaches, and no other; a preset bar ends with Custom; and no scope has two date controls. Search the filter controls for `<select` and `type="date"` — an action form keeps its date inputs. Then build and publish (`data-app`, _Build and publish_).
+For every visible filter except a KPI's own date control: All runs the unfiltered question, or its All question; its options come from a question; each option changes every panel the contract says it reaches, and no other; a preset bar ends with Custom unless it filters an aggregated question; and no scope has two date controls. Search the filter controls for `<select` and `type="date"` — an action form keeps its date inputs. Then build and publish (`data-app`, _Build and publish_).

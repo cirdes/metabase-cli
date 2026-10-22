@@ -1219,7 +1219,7 @@ mb data-action execute 1 --file values.json
 
 ## Data apps
 
-CRUD on `/api/ee/apps` plus the bundle and the typed schema. A data app is a React app built into one JavaScript bundle, which Metabase serves in a sandbox at `/apps/<slug>`; its questions and actions live in its own collection. Data apps need the `data-apps` premium feature. Admins see and open every app, disabled ones included; other users see only the apps they can open, with just `name` and `display_name`. The `data-app` skill covers building one, with `data-app-ui`, `data-app-data`, `data-app-filters` and `data-app-actions` for its parts.
+CRUD on `/api/ee/apps` plus the bundle and the typed schema. A data app is a React app built into one JavaScript bundle, which Metabase serves in a sandbox at `/apps/<slug>`; its questions and actions live in its own collection. Data apps need the `data-apps` premium feature. Admins see every app, but a disabled one opens only in Data Studio and an outdated one not at all; other users see only the apps they can open, with just `name` and `display_name`. The `data-app` skill covers building one, with `data-app-ui`, `data-app-data`, `data-app-filters` and `data-app-actions` for its parts.
 
 ### `mb data-app scaffold [dir]`
 
@@ -1254,14 +1254,14 @@ mb data-app create --body '{"name":"sales-overview","display_name":"Sales overvi
 mb data-app create --file app.json --json
 ```
 
-Body fields: `name` (required, the slug: lowercase letters, digits and single dashes, at most 100 characters), `display_name` (the slug by default), `description`, `allowed_hosts`, `enabled` (false by default), `bundle_path`, `version`. The app starts with an empty bundle, which `mb data-app set-bundle` replaces. The answer's `resource_collection_id` is the app's collection.
+Body fields: `name` (required, the slug: lowercase letters, digits and single dashes, at most 100 characters), `display_name` (the slug by default), `description`, `allowed_hosts`, `enabled` (true by default), `bundle_path`, `version`. The app starts with an empty bundle, which `mb data-app set-bundle` replaces. The answer's `resource_collection_id` is the app's collection.
 
 ### `mb data-app update <slug>`
 
-Patch a data app; the body carries only the fields to change (`display_name`, `description`, `allowed_hosts`, `enabled`, `bundle_path`, `version`). A disabled app is served only to admins.
+Patch a data app; the body carries only the fields to change (`display_name`, `description`, `allowed_hosts`, `enabled`, `bundle_path`, `version`). A disabled app opens only in Data Studio (Data apps → the app → Overview), and /apps/<slug> says not found, admins included.
 
 ```sh
-mb data-app update sales-overview --body '{"enabled":true}'
+mb data-app update sales-overview --body '{"display_name":"Sales overview"}'
 ```
 
 ### `mb data-app typed-schema <slug>`
@@ -1275,7 +1275,7 @@ mb data-app typed-schema sales-overview > src/metabase.ts
 
 ### `mb data-app set-bundle <slug>`
 
-Replace the app's bundle with a built one (`dist/index.js` by default). Enable a new app with `mb data-app set-enabled <slug> true`.
+Replace the app's bundle with a built one (`dist/index.js` by default), served at once.
 
 ```sh
 mb data-app set-bundle sales-overview
@@ -1288,10 +1288,10 @@ mb data-app set-bundle sales-overview --bundle build/index.js
 
 ### `mb data-app set-enabled <slug> <true|false>`
 
-Enable or disable the app. A disabled app is served only to admins.
+Enable or disable the app; a new app is enabled. A disabled app opens only in Data Studio (Data apps → the app → Overview), and /apps/<slug> says not found, admins included.
 
 ```sh
-mb data-app set-enabled sales-overview true
+mb data-app set-enabled sales-overview false
 ```
 
 ### `mb data-app delete <slug>`
@@ -1993,7 +1993,7 @@ mb library create --json
 
 ### `mb library publish`
 
-Publish tables (and their upstream dependencies) into the Library's Data collection (`POST /api/ee/data-studio/table/publish-tables`). The target Data collection is resolved automatically and the Library is created if it doesn't exist yet — there's no collection id to pass. Publishing does not add the Data collection to the git-sync scope; on an instance with remote sync configured, the command warns on stderr with the `mb git-sync add-collection <id>` invocation that makes exports carry the published tables' metadata.
+Publish tables (and their upstream dependencies) into the Library's Data collection (`POST /api/ee/data-studio/table/publish-tables`). The target Data collection is resolved automatically and the Library is created if it doesn't exist yet — there's no collection id to pass. Publishing does not add the Library to the git-sync scope; on an instance with remote sync configured, the command warns on stderr with the `mb git-sync add-collection <id>` invocation, naming the Library root, that makes exports carry the published tables' metadata.
 
 ```sh
 mb library publish --table-ids 1,2,3

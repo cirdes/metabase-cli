@@ -1,6 +1,6 @@
 ---
 name: data-app
-description: Create, preview, publish and manage a Metabase data app — a React app Metabase serves at /apps/<slug> — create it, scaffold its project, run the dev preview and read its diagnostics feed, build and publish the bundle, turn it on or off, move it to another instance, delete it. Triggers — "build a data app", "make an internal tool in Metabase", "scaffold a data app", "publish my data app", "update the app", "the app is blank". Start here; the UI is in `data-app-ui`, questions and charts in `data-app-data`, filter controls in `data-app-filters`, writes in `data-app-actions`.
+description: Create, preview, publish and manage a Metabase data app — a React app Metabase serves at /apps/<slug> — create it, scaffold its project, run the dev preview and read its diagnostics feed, build and publish the bundle, turn it off, move it to another instance, delete it. Triggers — "build a data app", "make an internal tool in Metabase", "scaffold a data app", "publish my data app", "update the app", "the app is blank". Start here; the UI is in `data-app-ui`, questions and charts in `data-app-data`, filter controls in `data-app-filters`, writes in `data-app-actions`.
 allowed-tools: Read, Write, Edit, Bash, AskUserQuestion
 requires: [dataApps]
 ---
@@ -17,11 +17,11 @@ The work, in order:
 4. Start the dev preview (_Dev preview_), then write the UI under `src/` (`data-app-ui`; filter controls in `data-app-filters`).
 5. Build and publish (_Build and publish_).
 
-For every later change: regenerate `src/metabase.ts` if the app's collection changed, then build and set the bundle. Metabase receives only the built bundle; the source stays in the project directory, under git if the user keeps one.
+For every later change: regenerate `src/metabase.ts` if the app's collection changed, then build and set the bundle; in a synced repository, then export and commit the source as in _Move to another instance_. Metabase receives only the built bundle; the source stays in the project directory, which is the app's folder in the synced git repository when there is one (_Scaffold and install_).
 
 ## Before you start
 
-- Use an **admin** profile — only admins create apps and write the app's collection. `mb auth status --json | jq .user.isAdmin` prints `true` for one; otherwise ask the user for an admin profile (`mb auth list`).
+- Use an **admin** profile — only admins create apps and write the app's collection. `mb auth status --profile <name> --json | jq .user.isAdmin` prints `true` for one, and every command below takes that `--profile`; otherwise ask the user for an admin profile (`mb auth list`).
 - Run `mb data-app list`. A failure means the instance has no data apps: stop and tell the user.
 - Settle the **slug**, the `/apps/<slug>` URL: lowercase letters, digits and single dashes (`sales-overview`), at most 100 characters. If the app's purpose is unclear, ask "what's this app for?" and propose one.
 
@@ -31,18 +31,18 @@ For every later change: regenerate `src/metabase.ts` if the app's collection cha
 mb data-app create --body '{"name":"sales-overview","display_name":"Sales overview"}' --json
 ```
 
-`name` is the slug; `display_name` and `description` are optional. The app starts disabled, with an empty bundle. The answer's `resource_collection_id` is the id of the app's collection — note it. A `409` means the slug is taken: `mb data-app list` shows that app; reuse it or pick another slug.
+`name` is the slug; `display_name` and `description` are optional. The app starts enabled, with an empty bundle, open to admins until a group is assigned. The answer's `resource_collection_id` is the id of the app's collection — note it. A `409` means the slug is taken: `mb data-app list` shows that app; reuse it or pick another slug.
 
 ## Scaffold and install
 
 ```bash
-mb data-app scaffold sales-overview && cd sales-overview
+mb data-app scaffold <repo>/data_apps/sales-overview && cd <repo>/data_apps/sales-overview
 ```
 
-`scaffold [dir]` takes a **directory**, not the slug: it copies the Vite + React + TypeScript template into a new or empty directory (the current one when omitted) and needs no server. Then install the SDK, then the rest:
+`scaffold [dir]` takes a **directory**, not the slug: it copies the Vite + React + TypeScript template into a new or empty directory (the current one when omitted) and needs no server. When the instance syncs with a git repository (`mb git-sync status`), the directory is `data_apps/<slug>/` in a local clone of that repository (ask the user for its path, or clone the remote), where an export writes the app's `data_app.yaml` and bundle: an export leaves the source alone and an import ignores it, so the repository keeps the source with the app. `scaffold` needs an empty directory, so scaffold before the app's first export; for an app already in the repository, scaffold into a new directory and copy its files, dotfiles included (`cp -R <dir>/. data_apps/<slug>/`), in beside `data_app.yaml` and `dist/`; check `.gitignore` is there before `npm install`. Without a repository, use any new directory, and once remote sync is set up, move the project (without `node_modules/`, `dist/`, `.env.local` and a hand-written `data_app.yaml`) into `data_apps/<slug>/` before committing its source. Then install the SDK, then the rest:
 
 ```bash
-npm install @metabase/embedding-sdk-react@<major>-beta   # <major>: 66 for a version tag v1.66.x (`mb auth status --json | jq -r .version.tag`)
+npm install @metabase/embedding-sdk-react@<major>-beta   # <major>: 66 for a version tag v1.66.x (`mb auth status --profile <name> --json | jq -r .version.tag`)
 npm install && npm run typecheck && npm run build
 ```
 
@@ -58,12 +58,12 @@ The template is the bundle contract. Don't edit `package.json` by hand, and neve
 
 ```bash
 ( umask 077
-  URL=$(mb auth status --json | jq -r .url)
-  KEY=$(mb api-key create --body '{"name":"data-app <slug> dev","group_id":2}' --json | jq -r .unmasked_key)
+  URL=$(mb auth status --profile <name> --json | jq -r .url)
+  KEY=$(mb api-key create --profile <name> --body '{"name":"data-app <slug> dev","group_id":2}' --json | jq -r .unmasked_key)
   [ -n "$KEY" ] && [ "$KEY" != null ] && printf 'DATA_APP_MB_URL=%s\nDATA_APP_MB_API_KEY=%s\n' "$URL" "$KEY" > .env.local && echo written )
 ```
 
-Group `2` is Administrators. Never print `.env.local`. Delete the key at handoff (`mb api-key list`, then `mb api-key delete <id> --yes`); the next session writes a new one. A CORS error means the instance doesn't allow the preview's origin: ask the user to add `http://localhost:5174` under Admin → Embedding → Embedded analytics SDK → CORS.
+Group `2` is Administrators. Never print `.env.local`. Delete the key at handoff (`mb api-key list --profile <name>`, then `mb api-key delete <id> --yes --profile <name>`); the next session writes a new one. Metabase allows any localhost origin unless `MB_DISABLE_CORS_ON_LOCALHOST` is set, so a CORS error from the preview means it is: ask the user to unset it on this instance. Otherwise check `DATA_APP_MB_URL`.
 
 ### The diagnostics feed
 
@@ -96,7 +96,7 @@ curl -s "http://localhost:5174/__data-app/diagnostics?startEventId=0"
 - `clients: 0` means no tab is open, so empty `entries` prove nothing.
 - Before an edit, note `nextEventId`; after it, read again with that value as `startEventId`.
 - The feed answers for the running bundle: entries from replaced builds are counted in `staleEntries`, and anything still broken reports again under the new `buildId` (`?includeStale=true` shows the withheld ones). A failed build doesn't advance `buildId` and doesn't reach the feed — read the `npm run dev` terminal.
-- Quote `summary` as it is when you report it, and follow `hint` when there is one — except that you never add the Metabase URL to `allowed_hosts`. The feed keeps the last 200 entries; `curl -X DELETE …/__data-app/diagnostics` clears it.
+- Quote `summary` as it is when you report it, and follow `hint` when there is one — except that you never add the Metabase URL to `allowed_hosts`, and in a synced repository you set `allowed_hosts` with `mb data-app update`, export, and pull the export branch (_Move to another instance_) instead of editing `data_app.yaml`. A `frame-src` or `form-action` block can't be lifted in the preview (`data-app-ui`). The feed keeps the last 200 entries; `curl -X DELETE …/__data-app/diagnostics` clears it.
 
 | `kind`                             | Fix                                                                                                                 |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -110,12 +110,11 @@ curl -s "http://localhost:5174/__data-app/diagnostics?startEventId=0"
 ```bash
 npm run typecheck && npm run build
 mb data-app set-bundle sales-overview
-mb data-app set-enabled sales-overview true   # the first time
 ```
 
-`set-bundle` uploads `dist/index.js` (`--bundle` for another path) and replaces the app's bundle, live at once. A new app is disabled until `set-enabled` turns it on. Give the user `<metabase-url>/apps/<slug>`.
+`set-bundle` uploads `dist/index.js` (`--bundle` for another path) and replaces the app's bundle, live at once. A new app is on from the start; `mb data-app set-enabled <slug> false` turns it off, which only the user decides. An app turned off opens only in Data Studio → Data apps → the app → Overview; `/apps/<slug>` says "not found", for admins too. Give the user `<metabase-url>/apps/<slug>`.
 
-Admins open every app, enabled or not. Anyone else needs the app enabled (otherwise "not found") and one of their groups assigned to it (otherwise "You don't have access"), which only the user can do (Admin → Settings → Data apps → the app → Groups). A group reaches the app's collection and nothing more, so a viewer also needs data access to the tables its questions read.
+A viewer needs one of their groups assigned to the app (otherwise "You don't have access"), which only the user can do (Data Studio → Data apps → the app → Permissions). A group reaches the app's collection and nothing more, so a viewer also needs data access to the tables its questions read.
 
 ## Pitfalls
 
@@ -133,6 +132,6 @@ Admins open every app, enabled or not. Anyone else needs the app enabled (otherw
 ## Change, move, delete
 
 - **Turn off:** `mb data-app set-enabled <slug> false`. **Rename:** `mb data-app update <slug> --body '{"display_name":"…"}'` (also `description`, `allowed_hosts`).
-- **Outdated:** an app Metabase lists as _Outdated_ targets an older data-app contract: it won't open for anyone, and only admins see it listed, until it's migrated. Tell the user; don't change its code ad hoc.
-- **Move to another instance:** the app, its collection and what the collection holds are git-synced content. `mb git-sync export` (`git-sync`) writes `data_apps/<slug>/` with the bundle, and the collection under `collections/data_apps/`; importing the repository on the other instance recreates them with the same entity IDs, so the same `src/metabase.ts` and bundle work there. On a read-only instance the app's collection can't be edited: change it where it was built and export again.
-- **Delete:** confirm with the user, then `mb data-app delete <slug> --yes` — it removes the app, its bundle, its collection and the questions and actions in it. The project directory stays.
+- **Outdated:** an app Data Studio lists as _Outdated_ targets an older data-app contract: it won't open for anyone, and only admins see it, until it's migrated. Tell the user; don't change its code ad hoc.
+- **Move to another instance:** the app, its collection and what the collection holds are git-synced content. `mb git-sync export` (`git-sync`) writes `data_apps/<slug>/` with the bundle, and the collection under `collections/data_apps/`; importing the repository on the other instance recreates them with the same entity IDs, so the same `src/metabase.ts` works there. The first import there creates the app on, like `create`, open to admins until the user assigns groups; later imports keep its on/off state. The import doesn't check that the questions' tables are published on that instance, so the Library content they read goes in the same export: flag the Library root once (`mb git-sync add-collection <library-id>`, `git-sync`), or its metrics, measures and segments stay out of the repository; a data action needs its database's toggle on there too. Once the app is done, commit its source in `data_apps/<slug>/` on the branch you exported to, after the export. Pull the export branch: `git restore` a modified `dist/index.js`, then `git fetch`, `git switch <branch>`, `git pull --ff-only`. Then `git add data_apps/<slug>`, commit and push, and `mb git-sync import` whatever a cached `has-remote-changes` says, or the next export ends in `conflict`. The export writes `data_app.yaml` and `dist/index.js`, the bundle you uploaded; never edit or commit those two yourself, and when a fresh build changes `dist/index.js`, set the bundle and export again instead. The template's `.gitignore` keeps `node_modules/` and `.env.local` out. On a read-only synced instance only `set-enabled` works: creating, bundling, updating and deleting an app answer 403, and so does editing its collection; change it where it was built and export again.
+- **Delete:** confirm with the user, then `mb data-app delete <slug> --yes` — it removes the app, its bundle, its collection and the questions and actions in it. The project directory stays: in a synced repository, the next export removes the app's `data_app.yaml`, bundle and collection files; after that export, switch and pull the same way, delete the source in `data_apps/<slug>/` in a commit of your own, push, and import.
