@@ -9,7 +9,7 @@ import { parseSlug, slugArg } from "./slug";
 export default defineMetabaseCommand({
   meta: { name: "set-bundle", description: "Replace a data app's bundle with a built one" },
   details:
-    "Reads the built bundle (`npm run build` writes `dist/index.js`) and makes it the bundle Metabase serves at /apps/<slug>, at once. A new app is disabled, so only admins can open it: enable it with `mb data-app set-enabled <slug> true`.",
+    "Reads the built bundle (`npm run build` writes `dist/index.js`) and makes it the bundle Metabase serves at /apps/<slug>, at once. A new app is disabled: a disabled app opens only in Data Studio (Data apps → the app → Overview), and /apps/<slug> says not found, admins included. Enable it with `mb data-app set-enabled <slug> true`.",
   skills: [{ skill: "data-app", purpose: "build and publish an app" }],
   requires: ["dataApp.replaceBundle"],
   args: {
@@ -33,7 +33,9 @@ export default defineMetabaseCommand({
     const bundle = await readBundle(args.bundle);
     const client = await getClient();
     const app = await client.dataApp.replaceBundle(slug, bundle);
-    const state = app.enabled ? `served at /apps/${slug}` : "disabled, so only admins can open it";
+    const state = app.enabled
+      ? `served at /apps/${slug}`
+      : "disabled, so it opens only in Data Studio";
     renderSummary(app, dataAppView, `Set the bundle of data app ${slug}; it is ${state}.`, ctx);
   },
 });

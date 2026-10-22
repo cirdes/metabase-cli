@@ -13,7 +13,7 @@ const EnabledWord = z.enum(["true", "false"]);
 export default defineMetabaseCommand({
   meta: { name: "set-enabled", description: "Enable or disable a data app" },
   details:
-    "A new app is disabled. A disabled app is served only to admins; once enabled, it is served to the groups assigned to it.",
+    "A new app is disabled. A disabled app opens only in Data Studio (Data apps → the app → Overview), and /apps/<slug> says not found, admins included; once enabled, it is served to the groups assigned to it.",
   skills: [{ skill: "data-app", purpose: "publish an app" }],
   requires: ["dataApp.update"],
   args: {
