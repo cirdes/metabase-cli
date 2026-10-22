@@ -21,6 +21,7 @@ Notable changes to `@metabase/client`.
 - `search.query` and `collection.itemPages` explain an older server's 400 for a `models` value it does not take as the feature it lacks: `measure` in search through `measures`, `transform` through `transforms`, `exploration` through the new `explorations`, and among collection items `measure` through the new `collectionItemMeasures`.
 - `collection.itemPages` applies `pinned_state` on Metabase 64 and later, which read it as `pinned-state` and drop the spelling 58 through 63 read.
 - `TransformJobUpdateInput.active` records that it needs `transformJobActivation`; a server before 61 drops it unread and still answers the job as active.
+- `LibraryPublishTablesInput.collection_id` records that only a server with `tablePublishTargetCollection` (62+) reads it; an older one publishes into its one Library data collection. It is sent on every server.
 
 ## 0.1.0
 

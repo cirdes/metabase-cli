@@ -27,6 +27,7 @@ export const FEATURE_RULES = {
   tableFromDefinition: { since: 64 },
   library: { since: 59, tokenFeature: "library" },
   libraryDashboards: { since: 65 },
+  tablePublishTargetCollection: { since: 62 },
   remoteSync: { since: 58, tokenFeature: "remote_sync" },
   remoteSyncRemoteChanges: { since: 59, tokenFeature: "remote_sync" },
   remoteSyncCollectionsOnlyUpdate: { since: 60 },
