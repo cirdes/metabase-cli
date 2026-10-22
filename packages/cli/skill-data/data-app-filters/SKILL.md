@@ -48,7 +48,7 @@ Any list whose options come from a question — an id shown as a name, a categor
 
 ## Date ranges
 
-A preset bar lists the durations, then All time, then Custom last — leave Custom out only if the user asked for fixed presets. Every option ends in the same `[start, end]` range (All time is `[null, null]`), so one `between` filter serves them all. Custom is `DateRangePopover` around your own trigger, or `DateRangeCalendar` inline, both from `@metabase/embedding-sdk-react/data-app`. No date-picker library and no `<input type="date">` for a range.
+A preset bar lists the durations, then All time, then Custom last — leave Custom out only if the user asked for fixed presets, or the number is a distinct count, average or ratio, which offers whole periods only (`data-app-data`). Every option ends in the same `[start, end]` range (All time is `[null, null]`), so one `between` filter serves them all. Custom is `DateRangePopover` around your own trigger, or `DateRangeCalendar` inline, both from `@metabase/embedding-sdk-react/data-app`. No date-picker library and no `<input type="date">` for a range.
 
 ```tsx
 import { DateRangePopover, filter, useDateFormatter } from "@metabase/embedding-sdk-react/data-app";
