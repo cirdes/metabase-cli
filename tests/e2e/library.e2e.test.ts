@@ -228,7 +228,7 @@ describe("library e2e", () => {
   describe.skipIf(LIBRARY_UNAVAILABLE !== null || REMOTE_SYNC_UNAVAILABLE !== null)(
     "with the library and remote_sync features",
     () => {
-      it("publish warns on stderr when the Data collection is outside the git-sync scope and a remote is configured", async () => {
+      it("publish warns on stderr when the Library is outside the git-sync scope and a remote is configured", async () => {
         const remoteUrl = "https://github.com/example/e2e-sync.git";
         const setUrl = await runCli({
           args: ["setting", "set", "remote-sync-url", JSON.stringify(remoteUrl), "--json"],
@@ -243,11 +243,19 @@ describe("library e2e", () => {
           env: authEnv(),
         });
 
+        const library = await runCli({
+          args: ["library", "get", "--json"],
+          configHome: await makeIsolatedConfigHome(),
+          env: authEnv(),
+        });
+        expect(library.exitCode, library.stderr).toBe(0);
+        const { id, name } = parseJson(library.stdout, Library);
+
         expect(publish.exitCode).toBe(0);
         expect(publish.stderr).toContain(
-          `Note: collection ${SEEDED.libraryDataCollectionId} "Data" is not marked for git-sync, ` +
+          `Note: collection ${id} "${name}" is not marked for git-sync, ` +
             `so \`mb git-sync export\` will not carry it (or its published tables' metadata) to ${remoteUrl}. ` +
-            `Add it with: mb git-sync add-collection ${SEEDED.libraryDataCollectionId}`,
+            `Add it with: mb git-sync add-collection ${id}`,
         );
       });
     },
