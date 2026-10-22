@@ -1219,7 +1219,7 @@ mb data-action execute 1 --file values.json
 
 ## Data apps
 
-CRUD on `/api/ee/apps` plus the bundle and the typed schema. A data app is a React app built into one JavaScript bundle, which Metabase serves in a sandbox at `/apps/<slug>`; its questions and actions live in its own collection. Data apps need the `data-apps` premium feature. Admins see and open every app, disabled ones included; other users see only the apps they can open, with just `name` and `display_name`. The `data-app` skill covers building one, with `data-app-ui`, `data-app-data`, `data-app-filters` and `data-app-actions` for its parts.
+CRUD on `/api/ee/apps` plus the bundle and the typed schema. A data app is a React app built into one JavaScript bundle, which Metabase serves in a sandbox at `/apps/<slug>`; its questions and actions live in its own collection. Data apps need the `data-apps` premium feature. Admins see every app, but a disabled one opens only in Data Studio and an outdated one not at all; other users see only the apps they can open, with just `name` and `display_name`. The `data-app` skill covers building one, with `data-app-ui`, `data-app-data`, `data-app-filters` and `data-app-actions` for its parts.
 
 ### `mb data-app scaffold [dir]`
 
@@ -1993,7 +1993,7 @@ mb library create --json
 
 ### `mb library publish`
 
-Publish tables (and their upstream dependencies) into the Library's Data collection (`POST /api/ee/data-studio/table/publish-tables`). The target Data collection is resolved automatically and the Library is created if it doesn't exist yet — there's no collection id to pass. Publishing does not add the Data collection to the git-sync scope; on an instance with remote sync configured, the command warns on stderr with the `mb git-sync add-collection <id>` invocation that makes exports carry the published tables' metadata.
+Publish tables (and their upstream dependencies) into the Library's Data collection (`POST /api/ee/data-studio/table/publish-tables`). The target Data collection is resolved automatically and the Library is created if it doesn't exist yet — there's no collection id to pass. Publishing does not add the Library to the git-sync scope; on an instance with remote sync configured, the command warns on stderr with the `mb git-sync add-collection <id>` invocation, naming the Library root, that makes exports carry the published tables' metadata.
 
 ```sh
 mb library publish --table-ids 1,2,3

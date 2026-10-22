@@ -64,7 +64,7 @@ Workflow:
 
 <!-- requires: remoteSyncRemoteChanges -->
 
-Between the two, confirm `has-remote-changes` reports `has_changes: true` — there's actually something to import.
+Between the two, confirm `has-remote-changes` reports `has_changes: true` (`--force-refresh` after your own push: the answer is cached).
 
 <!-- /requires -->
 
@@ -241,7 +241,7 @@ To plan the order before the first move, `mb dependency graph dashboard <id> --j
 
 Table and field metadata — table/field descriptions, semantic types (`type/PK`, `type/FK`), FK targets, plus segments and measures on the table — serializes for **Library-published tables only**, under `databases/<db>/schemas/<schema>/tables/<table>/…` in the repo. Eligibility is two-gated: the table must be published (`mb library publish`), **and** Library Data must be synced; flag the Library root, as Data alone leaves out Metrics, Dashboards, snippets, data actions and glossary. An ordinary warehouse table, or a transform's target table that isn't published, never serializes — a transform's YAML carries only the transform definition (query, target, description), not the output table's field metadata.
 
-The classic trap: publish tables, write field metadata, then `git-sync dirty` comes back empty and nothing lands in the repo. That does not mean git-sync can't carry table metadata — it means the Library collection isn't in the sync scope, so nothing was eligible for dirty-tracking when the writes happened. Check the scope (`synced_collections` in `status`), then:
+The classic trap: publish tables, write field metadata, then `git-sync dirty` comes back empty and nothing lands in the repo. It means the Library collection isn't in the sync scope, so nothing was eligible for dirty-tracking when the writes happened. Check the scope (`synced_collections` in `status`), then:
 
 ```bash
 mb collection list --profile <n> --json                            # the "type": "library" entry's id
