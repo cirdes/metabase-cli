@@ -5,7 +5,7 @@
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/metabase/mb-cli.git",
+    "url": "git+https://github.com/metabase/metabase-cli.git",
     "directory": "packages/client"
   },
   "files": [
