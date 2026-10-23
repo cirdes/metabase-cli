@@ -1275,16 +1275,16 @@ mb data-app typed-schema sales-overview > src/metabase.ts
 
 ### `mb data-app set-bundle <slug>`
 
-Replace the app's bundle with a built one (`dist/index.js` by default), served at once.
+Replace the app's bundle with a built one (`build/index.js` by default), served at once.
 
 ```sh
 mb data-app set-bundle sales-overview
-mb data-app set-bundle sales-overview --bundle build/index.js
+mb data-app set-bundle sales-overview --bundle dist/index.js
 ```
 
-| Flag              | Description                                 |
-| ----------------- | ------------------------------------------- |
-| `--bundle <path>` | Built bundle file. Default `dist/index.js`. |
+| Flag              | Description                                  |
+| ----------------- | -------------------------------------------- |
+| `--bundle <path>` | Built bundle file. Default `build/index.js`. |
 
 ### `mb data-app set-enabled <slug> <true|false>`
 
