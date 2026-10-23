@@ -26,7 +26,7 @@ mb data-app set-bundle <slug>                     # makes build/index.js the app
 ```
 
 To ship the bundle through git instead, for example from CI, run
-`npm run build -- --outDir dist` and commit `dist/index.js`, the file the app's
+`npm run build:ci` and commit `dist/index.js`, the file the app's
 `data_app.yaml` names; the next git-sync import loads it.
 
 `npm run dev` reads `DATA_APP_MB_URL` and `DATA_APP_MB_API_KEY` from
