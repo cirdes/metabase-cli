@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 
 import { ConfigError } from "../errors";
+import { throwIfAborted, whenAborted } from "../signal";
 
 const LOOPBACK_HOST = "127.0.0.1";
 const CALLBACK_PATH = "/callback";
@@ -84,14 +85,18 @@ function serverPort(server: Server): number {
 
 // Bind an ephemeral loopback port and resolve once the browser redirect hits /callback with the
 // expected state. RFC 8252 native-app flow: the redirect URI is http://127.0.0.1:<port>/callback.
+// An abort fails the pending wait with the signal's reason and frees the port at once.
 export function startCallbackServer(
   expectedState: string,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  signal?: AbortSignal,
 ): Promise<CallbackServer> {
   return new Promise((resolveServer, rejectServer) => {
+    throwIfAborted(signal);
     let settle: ((params: CallbackParams) => void) | null = null;
     let fail: ((error: Error) => void) | null = null;
     let outcome: CallbackParams | Error | null = null;
+    let closed = false;
 
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const rawUrl = req.url ?? "";
@@ -139,13 +144,36 @@ export function startCallbackServer(
     }, timeoutMs);
     timer.unref();
 
+    const stopWatchingAbort = whenAborted(signal, (reason) => {
+      rejectServer(reason);
+      deliver(reason);
+      close();
+    });
+
+    function close(): void {
+      closed = true;
+      clearTimeout(timer);
+      stopWatchingAbort();
+      server.close();
+      // A browser's lingering keep-alive socket would otherwise hold the event loop (and the
+      // CLI process) open after close().
+      server.closeAllConnections();
+    }
+
     server.on("error", (error) => {
       // Before listen resolves this fails startup; after, it aborts the pending login instead of
       // stalling silently until the timeout fires.
       rejectServer(error);
       deliver(error);
+      close();
     });
     server.listen(0, LOOPBACK_HOST, () => {
+      // Node 20 still binds a listen that a close() issued before it resolved has raced, which
+      // would hold the port and the event loop open.
+      if (closed) {
+        server.close();
+        return;
+      }
       const port = serverPort(server);
       resolveServer({
         redirectUri: `http://${LOOPBACK_HOST}:${port}${CALLBACK_PATH}`,
@@ -163,13 +191,7 @@ export function startCallbackServer(
             fail = reject;
           });
         },
-        close() {
-          clearTimeout(timer);
-          server.close();
-          // A browser's lingering keep-alive socket would otherwise hold the event loop (and the
-          // CLI process) open after close().
-          server.closeAllConnections();
-        },
+        close,
       });
     });
   });

@@ -2,6 +2,10 @@
 
 Notable changes to `@metabase/client`.
 
+## 0.1.2
+
+- `oauthLogin` takes an optional `signal`. Aborting it, before or during the flow, rejects with the signal's reason when that is a `MetabaseError`, else with an `AbortError` carrying its message, frees the loopback callback port at once, and cancels discovery, client registration or the token exchange in flight. `tryDiscoverMetadata`, `discoverLoginMetadata`, `registerClient` and `exchangeCode` on `@metabase/client/http/oauth` take a signal too, and `@metabase/client/signal` exports `whenAborted`.
+
 ## 0.1.1
 
 - `DashboardCreateInput` holds only the fields `POST /api/dashboard` reads, so a layout passed to `dashboard.create` fails to compile; send it as a `DashboardLayoutInput` through `dashboard.update`. At run time `dashboard.create` drops any other key before the request, as the server does, and refuses a blank `name`, as the server does.

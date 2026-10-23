@@ -6,6 +6,7 @@ import {
   registerClient,
   type OAuthServerMetadata,
 } from "../http/oauth";
+import { untilAborted } from "../signal";
 
 import { startCallbackServer } from "./callback-server";
 import { oauthCredentialFromTokens, type OAuthCredential } from "./credential";
@@ -22,6 +23,9 @@ export interface OAuthLoginInput {
   metadata?: OAuthServerMetadata;
   clientId?: string;
   timeoutMs?: number;
+  // Aborting rejects with the signal's reason, frees the loopback port and cancels any request in
+  // flight.
+  signal?: AbortSignal;
 }
 
 export interface OAuthLoginDeps {
@@ -54,6 +58,7 @@ async function resolveClientId(
     redirectUri,
     clientName: input.clientName,
     userAgent: input.userAgent,
+    signal: input.signal,
   });
   return registered.client_id;
 }
@@ -62,11 +67,12 @@ export async function oauthLogin(
   input: OAuthLoginInput,
   deps: OAuthLoginDeps,
 ): Promise<OAuthCredential> {
-  const metadata = input.metadata ?? (await discoverLoginMetadata(input.baseUrl, input.userAgent));
+  const metadata =
+    input.metadata ?? (await discoverLoginMetadata(input.baseUrl, input.userAgent, input.signal));
   const pkce = generatePkce();
   const state = randomState();
   // The server validates state in-handler, so a forged callback can't consume the slot.
-  const server = await startCallbackServer(state, input.timeoutMs);
+  const server = await startCallbackServer(state, input.timeoutMs, input.signal);
   try {
     const clientId = await resolveClientId(
       input,
@@ -83,7 +89,7 @@ export async function oauthLogin(
       scope: OAUTH_SCOPE,
     });
 
-    const opened = await deps.openBrowser(authorizeUrl);
+    const opened = await untilAborted(deps.openBrowser(authorizeUrl), input.signal);
     deps.onAuthorizeUrl(authorizeUrl, opened);
 
     const callback = await server.waitForCallback();
@@ -95,6 +101,7 @@ export async function oauthLogin(
       clientId,
       codeVerifier: pkce.verifier,
       userAgent: input.userAgent,
+      signal: input.signal,
     });
 
     if (tokens.refresh_token === undefined) {
