@@ -118,16 +118,16 @@ A viewer needs one of their groups assigned to the app (otherwise "You don't hav
 
 ## Pitfalls
 
-| Symptom                                                             | Fix                                                                                                                        |
-| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `set-bundle`: bundle not found                                      | Run `npm run build` in the project directory first; an older SDK builds `dist/index.js`, so pass `--bundle dist/index.js`. |
-| Blank app, `Bundle did not assign a function to __dataAppFactory__` | `src/index.tsx` must `export default` the factory and nothing else; otherwise the diagnostics feed has the real error.     |
-| "Failed to fetch the user, the session might be invalid."           | A bad key in `.env.local`, or CORS (_Dev preview_).                                                                        |
-| A bundle of several MB                                              | `vite.config.ts` no longer uses `dataAppConfig()`, or the SDK isn't the `<major>-beta` tag.                                |
-| "Invalid hook call"                                                 | A second React got bundled: nothing may add another `react` or `react-dom`.                                                |
-| Drill-through popups don't open                                     | The app renders its own `<MetabaseProvider>`: remove it.                                                                   |
-| A rebuilt or reinstalled SDK still behaves like the old one         | Vite caches it: stop `npm run dev`, delete `node_modules/.vite`, start again.                                              |
-| A viewer's query or action fails with 403                           | It reads something outside the app's collection, or the viewer lacks data access to its tables.                            |
+| Symptom                                                             | Fix                                                                                                                    |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `set-bundle`: bundle not found                                      | Run `npm run build` in the project directory first.                                                                    |
+| Blank app, `Bundle did not assign a function to __dataAppFactory__` | `src/index.tsx` must `export default` the factory and nothing else; otherwise the diagnostics feed has the real error. |
+| "Failed to fetch the user, the session might be invalid."           | A bad key in `.env.local`, or CORS (_Dev preview_).                                                                    |
+| A bundle of several MB                                              | `vite.config.ts` no longer uses `dataAppConfig()`, or the SDK isn't the `<major>-beta` tag.                            |
+| "Invalid hook call"                                                 | A second React got bundled: nothing may add another `react` or `react-dom`.                                            |
+| Drill-through popups don't open                                     | The app renders its own `<MetabaseProvider>`: remove it.                                                               |
+| A rebuilt or reinstalled SDK still behaves like the old one         | Vite caches it: stop `npm run dev`, delete `node_modules/.vite`, start again.                                          |
+| A viewer's query or action fails with 403                           | It reads something outside the app's collection, or the viewer lacks data access to its tables.                        |
 
 ## Change, move, delete
 
