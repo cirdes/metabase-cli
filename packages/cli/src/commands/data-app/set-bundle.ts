@@ -9,7 +9,7 @@ import { parseSlug, slugArg } from "./slug";
 export default defineMetabaseCommand({
   meta: { name: "set-bundle", description: "Replace a data app's bundle with a built one" },
   details:
-    "Reads the built bundle (`npm run build` writes `dist/index.js`) and makes it the bundle Metabase serves at /apps/<slug>, at once. A new app is enabled; viewers reach it once a group is assigned. A disabled app opens only in Data Studio (Data apps → the app → Overview).",
+    "Reads the built bundle (`npm run build` writes `build/index.js`) and makes it the bundle Metabase serves at /apps/<slug>, at once. A new app is enabled; viewers reach it once a group is assigned. A disabled app opens only in Data Studio (Data apps → the app → Overview).",
   skills: [{ skill: "data-app", purpose: "build and publish an app" }],
   requires: ["dataApp.replaceBundle"],
   args: {
@@ -26,7 +26,7 @@ export default defineMetabaseCommand({
   outputSchema: DataApp,
   examples: [
     "mb data-app set-bundle sales-overview",
-    "mb data-app set-bundle sales-overview --bundle build/index.js",
+    "mb data-app set-bundle sales-overview --bundle out/index.js",
   ],
   async run({ args, ctx, getClient }) {
     const slug = parseSlug(args.slug);

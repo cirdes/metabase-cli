@@ -7,7 +7,7 @@ import { z } from "zod";
 import { ConfigError, isFileNotFoundError } from "@metabase/client/errors";
 import { parseJson } from "@metabase/client/json";
 
-export const DEFAULT_BUNDLE_PATH = "dist/index.js";
+export const DEFAULT_BUNDLE_PATH = "build/index.js";
 
 const PackageManifest = z.object({}).loose();
 

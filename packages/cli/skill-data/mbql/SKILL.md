@@ -49,7 +49,7 @@ An options key the server doesn't know is rejected or silently dropped, never ap
 - `filters` are ANDed; OR is `["or", {}, a, b, …]`. Multi-value is `["in", {}, <field>, "a", "b"]` / `["not-in", …]`.
 - Relative dates: `["time-interval", {}, <field>, -30, "day"]`, `["time-interval", {}, <field>, "current", "month"]`. A stated year or date range is absolute: `["between", {}, <field>, "2024-01-01", "2024-12-31"]` (inclusive).
 - `aggregation` is a list of aggregation clauses, `breakout` a list of refs. "only / where X" is a filter; "by / per / over time" is a breakout.
-- Name every aggregation a later stage, a chart setting or a target table reads: `["sum", {"name": "revenue", "display-name": "Revenue"}, <field>]`. Unnamed, it is `count`, `sum`, `avg`, … and a second `sum` is `sum_2`.
+- An unnamed aggregation is `count`, `sum`, `avg`, …, a breakout keeps its field's name, and a repeat gets a suffix that moves when clauses change: a second `sum` is `sum_2`, a second `ID` breakout (another table's) `ID_2`. When a later stage, a chart setting or a target table reads such a column, set `"name"` in the clause's options: `["sum", {"name": "revenue", "display-name": "Revenue"}, <field>]`, `["field", {"name": "product_id", "source-field": 11}, 12]`.
 - An aggregation can be arithmetic over aggregations: `["/", {"name": "aov"}, ["sum", {}, <field>], ["count", {}]]`.
 - Date arithmetic is `["datetime-diff", {}, a, b, "day"]`.
 
@@ -122,7 +122,7 @@ A later stage reads the previous stage's output by column name, with the column'
 ]
 ```
 
-The names and base types are the `name` and `base_type` of the columns the earlier stages return: run them once (`mb query … --json`, `data.cols`) and copy both. A breakout keeps its field's name (`CREATED_AT`, even when bucketed); an aggregation has the `name` you gave it.
+The names and base types are the `name` and `base_type` of the columns the earlier stages return: run them once (`mb query … --json`, `data.cols`) and copy both. A breakout keeps its field's name (`CREATED_AT`, even when bucketed) and an aggregation its operator's, unless its options set `name`.
 
 **Window:** `offset` sits in `aggregation` and reads another breakout row. Month-over-month against a monthly breakout:
 
