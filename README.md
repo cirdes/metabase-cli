@@ -1279,7 +1279,7 @@ Replace the app's bundle with a built one (`build/index.js` by default), served 
 
 ```sh
 mb data-app set-bundle sales-overview
-mb data-app set-bundle sales-overview --bundle dist/index.js
+mb data-app set-bundle sales-overview --bundle out/index.js
 ```
 
 | Flag              | Description                                  |

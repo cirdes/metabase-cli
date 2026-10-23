@@ -26,7 +26,7 @@ export default defineMetabaseCommand({
   outputSchema: DataApp,
   examples: [
     "mb data-app set-bundle sales-overview",
-    "mb data-app set-bundle sales-overview --bundle dist/index.js",
+    "mb data-app set-bundle sales-overview --bundle out/index.js",
   ],
   async run({ args, ctx, getClient }) {
     const slug = parseSlug(args.slug);
