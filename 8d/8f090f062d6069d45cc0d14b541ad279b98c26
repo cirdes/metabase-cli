@@ -1,0 +1,51 @@
+packages/cli/src/commands/flags.ts
+  s_907331b2ae6247::t_7d9b3de897217f 3-4
+  s_907331b2ae6247::t_fbdde25e565ff4 76-83
+  s_907331b2ae6247::t_7da9b0d77f7b82 74-75
+tests/e2e/slow-query.ts
+  s_907331b2ae6247::t_a291f8a4d66085 1-7,14-15,18-25
+  s_907331b2ae6247::t_c0f165ca7a9fe3 8-13,16-17
+tests/e2e/query.e2e.test.ts
+  s_907331b2ae6247::t_9346df267d92a5 11,14
+  s_907331b2ae6247::t_dbee36092a6bf0 551-588
+tests/e2e/card.e2e.test.ts
+  s_907331b2ae6247::t_fdae169feec049 94-109
+  s_907331b2ae6247::t_6bda70a75b9899 19
+  s_907331b2ae6247::t_88e5cda4e405eb 333-379
+packages/cli/src/commands/transform-test/run.ts
+  s_907331b2ae6247::t_1d5f54094a06d2 10
+  s_907331b2ae6247::t_8707205bf552fe 45
+packages/cli/src/commands/query.ts
+  s_907331b2ae6247::t_b5c262919bce65 95-96
+  s_907331b2ae6247::t_e0548a4c824428 76
+  s_907331b2ae6247::t_a0ab0796665380 91
+  s_907331b2ae6247::t_569d43913e847d 28,31-32
+  s_907331b2ae6247::t_299f332a663322 140-144
+  s_907331b2ae6247::t_5a6d4c6760b04a 121
+packages/cli/src/commands/card/query.ts
+  s_907331b2ae6247::t_f550cdf29a8055 64-65,75-80
+  s_907331b2ae6247::t_62dfb255190d6e 26-27,33
+  s_907331b2ae6247::t_6254b568902854 57
+  s_907331b2ae6247::t_a3e69320f0d91a 11,13
+README.md
+  s_907331b2ae6247::t_9a7e0d3e34d5c0 2481
+  s_907331b2ae6247::t_a64538428c2b04 849
+  s_907331b2ae6247::t_d96a0897c49592 858
+  s_907331b2ae6247::t_47c61e94f60ddd 2462
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8d8f090f062d6069d45cc0d14b541ad279b98c26",
+  "prompts": {},
+  "sessions": {
+    "s_907331b2ae6247": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7e1b3451-a783-455d-b633-7b4e130af5ed",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Cirdes <cirdes@linkana.com>"
+    }
+  }
+}
